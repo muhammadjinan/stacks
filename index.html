@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Stacks — reading tracker</title>
+<meta name="description" content="A simple, glassy tracker for everything you're reading at once.">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#171310">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stacks">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#F5F0E7;
+    --ink-soft:rgba(245,240,231,0.66);
+    --ink-faint:rgba(245,240,231,0.42);
+    --glass:rgba(255,255,255,0.07);
+    --glass-border:rgba(255,255,255,0.14);
+    --glass-border-hi:rgba(255,255,255,0.30);
+    --glass-blur:blur(22px) saturate(160%);
+    --solid:rgba(21,17,14,0.90);
+    --solid-border:rgba(255,255,255,0.10);
+    --hover-fill:rgba(255,255,255,0.10);
+    --accent:#C4692F;
+    --accent-strong:#A8551F;
+    --accent-soft:#E3A87C;
+    --error:#FF6B57;
+    --shadow:0 10px 30px rgba(0,0,0,0.35);
+    --radius:14px;
+    --bg-default:linear-gradient(160deg, #2b2019 0%, #1a1512 55%, #0f0c0a 100%);
+    --scrim-gradient:linear-gradient(180deg, rgba(6,5,4,0.50) 0%, rgba(6,5,4,0.68) 60%, rgba(6,5,4,0.80) 100%);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:#100d0b;
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  #bg-layer{
+    position:fixed; inset:0; z-index:-2;
+    background-size:cover; background-position:center;
+    background-color:#171310;
+  }
+  #bg-layer.bg-default{ background-image:var(--bg-default); }
+  #bg-scrim{
+    position:fixed; inset:0; z-index:-1;
+    background:var(--scrim-gradient);
+    pointer-events:none;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    margin:0;
+    color:var(--ink);
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  button{font-family:inherit;}
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:32px 20px 100px;
+    position:relative;
+  }
+
+  /* header */
+  .app-header{margin-bottom:22px;}
+  .app-header h1{font-size:34px; letter-spacing:-0.01em;}
+  .app-header p{margin:6px 0 0; color:var(--ink-soft); font-size:14.5px;}
+  .header-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .profile-btn{
+    display:flex; align-items:center; gap:8px;
+    background:none; border:none; cursor:pointer; padding:4px; border-radius:20px;
+    flex-shrink:0;
+  }
+  .profile-btn:hover{ background:var(--hover-fill); }
+  .profile-avatar{
+    width:34px; height:34px; border-radius:50%;
+    background:var(--accent); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:600; font-family:'Inter',sans-serif;
+    background-size:cover; background-position:center; flex-shrink:0;
+  }
+  .profile-avatar-lg{ width:52px; height:52px; font-size:17px; }
+  .profile-name{ font-size:13px; color:var(--ink-soft); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .backup-row{ margin-top:10px; }
+  .link-btn{
+    background:none; border:none; padding:0; cursor:pointer;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:underline;
+    text-underline-offset:2px;
+  }
+  .link-btn:hover{ color:var(--accent-soft); }
+  .backup-sep{ color:var(--ink-faint); margin:0 8px; font-size:12.5px; }
+
+  /* shared glass surface */
+  .stat-chip, .shelf-outer, .book-row, .goal-card, .section-empty{
+    background:var(--glass);
+    backdrop-filter:var(--glass-blur);
+    -webkit-backdrop-filter:var(--glass-blur);
+    border:1px solid var(--glass-border);
+    border-top-color:var(--glass-border-hi);
+    box-shadow:var(--shadow);
+  }
+
+  .stats-row{ display:flex; gap:10px; margin:0 0 24px; flex-wrap:wrap; }
+  .stat-chip{ border-radius:var(--radius); padding:10px 16px; flex:1 1 120px; min-width:100px; }
+  .stat-chip .num{font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:500; color:var(--accent-soft);}
+  .stat-chip .lbl{font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.05em; margin-top:2px;}
+
+  /* goal ring */
+  .goal-card{ border-radius:var(--radius); padding:20px 22px; display:flex; align-items:center; gap:18px; }
+  .goal-ring-wrap{ position:relative; width:88px; height:88px; flex-shrink:0; }
+  .goal-ring-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .goal-ring-track{ fill:none; stroke:rgba(255,255,255,0.16); stroke-width:10; }
+  .goal-ring-fill{ fill:none; stroke:var(--accent); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 0.5s ease; }
+  .goal-ring-number{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:22px; color:var(--ink); }
+  .goal-info h3{ font-size:16px; margin-bottom:4px; }
+  .goal-info p{ margin:0; font-size:12.5px; color:var(--ink-soft); }
+
+  /* sections */
+  section{margin-bottom:34px;}
+  section h2{font-size:19px; margin-bottom:14px;}
+  .section-empty{ color:var(--ink-soft); font-size:14px; border-radius:var(--radius); padding:22px; text-align:center; border-style:dashed; }
+  .section-empty button{margin-top:12px;}
+
+  /* shelf: the signature element */
+  .shelf-outer{ position:relative; border-radius:14px; padding:22px 18px 0; }
+  .shelf-scroll{ display:flex; align-items:flex-end; gap:10px; overflow-x:auto; padding-bottom:20px; min-height:210px; }
+  .shelf-board{
+    height:10px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.08));
+    border-radius:2px;
+    box-shadow:0 3px 6px rgba(0,0,0,0.35);
+    margin:0 18px 22px;
+  }
+  .spine{
+    position:relative; height:190px; border-radius:3px 3px 1px 1px; cursor:pointer;
+    flex:0 0 auto; overflow:hidden;
+    box-shadow:1px 0 0 rgba(0,0,0,0.15) inset, -1px 0 0 rgba(255,255,255,0.08) inset;
+    transition:transform 0.15s ease;
+  }
+  .spine:hover{ transform:translateY(-4px); }
+  .spine:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .spine.selected{ transform:translateY(-6px); box-shadow:0 6px 16px rgba(0,0,0,0.45); }
+  .spine-fill{ position:absolute; left:0; right:0; bottom:0; transition:height 0.4s ease; }
+  .spine-title{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    writing-mode:vertical-rl; text-orientation:mixed;
+    font-family:'Fraunces',serif; font-size:13px; font-weight:500;
+    color:rgba(255,255,255,0.94); padding:10px 0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:0.01em;
+  }
+  .add-spine{
+    flex:0 0 auto; width:52px; height:190px; border-radius:3px;
+    border:1.5px dashed var(--glass-border); background:transparent;
+    color:var(--ink-soft); font-size:22px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .add-spine:hover{ border-color:var(--accent); color:var(--accent-soft); }
+
+  /* detail panel: near-opaque for readability */
+  .detail-panel{
+    margin-top:14px;
+    background:var(--solid);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    border:1px solid var(--solid-border);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    box-shadow:var(--shadow);
+  }
+  .detail-panel[hidden]{display:none;}
+  .detail-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .detail-top h3{ font-size:20px; }
+  .detail-author{ color:var(--ink-soft); font-size:13.5px; margin-top:2px; }
+  .icon-btn{
+    background:none; border:none; color:var(--ink-soft);
+    font-size:18px; cursor:pointer; padding:4px 6px; border-radius:6px; line-height:1;
+  }
+  .icon-btn:hover{ background:var(--hover-fill); color:var(--ink); }
+
+  .progress-track{ height:8px; background:rgba(255,255,255,0.14); border-radius:5px; margin:16px 0 6px; overflow:hidden; }
+  .progress-fill-h{ height:100%; background:var(--accent); border-radius:5px; transition:width 0.4s ease; }
+  .progress-label{ font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; }
+
+  .detail-meta{ display:flex; gap:22px; margin:16px 0 4px; flex-wrap:wrap; }
+  .detail-meta div .num{ font-size:16px; }
+  .detail-meta div .lbl{ font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; }
+
+  .log-row{ display:flex; gap:8px; margin-top:18px; flex-wrap:wrap; align-items:center; }
+  .chip{ background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); border-radius:20px; padding:7px 14px; font-size:13px; cursor:pointer; color:var(--ink); }
+  .chip:hover{ border-color:var(--accent); }
+  .page-input{
+    width:90px; height:36px; border-radius:8px; border:1px solid var(--glass-border);
+    padding:0 10px; font-size:14px; font-family:'IBM Plex Mono',monospace;
+    background:rgba(255,255,255,0.06); color:var(--ink);
+  }
+  .page-input:focus, .chip:focus-visible, .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .btn{
+    border-radius:8px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.08);
+    padding:8px 14px; font-size:13.5px; cursor:pointer; color:var(--ink);
+  }
+  .btn:hover{ border-color:var(--accent); }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn-primary:hover{ background:var(--accent-strong); border-color:var(--accent-strong); }
+  .btn-quiet{ border-color:transparent; background:transparent; color:var(--ink-soft); }
+  .detail-actions{ display:flex; gap:10px; margin-top:18px; border-top:1px solid var(--glass-border); padding-top:14px; }
+
+  /* lists */
+  .book-row{ display:flex; align-items:center; justify-content:space-between; border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+  .book-row .title{ font-size:14.5px; font-weight:500; }
+  .book-row .sub{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .row-actions{ display:flex; gap:6px; align-items:center; }
+
+  /* fab */
+  .fab{
+    position:fixed; right:22px; bottom:22px;
+    width:56px; height:56px; border-radius:50%;
+    background:var(--accent); color:#fff; border:none;
+    font-size:26px; cursor:pointer;
+    box-shadow:0 4px 16px rgba(0,0,0,0.45);
+    display:flex; align-items:center; justify-content:center;
+    z-index:10;
+  }
+  .fab:hover{ background:var(--accent-strong); }
+  .fab:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
+
+  /* modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(5,4,3,0.6);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px; z-index:50; overflow-y:auto;
+  }
+  .modal-overlay[hidden]{ display:none; }
+  .modal{
+    background:var(--solid); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--solid-border);
+    border-radius:14px; padding:26px;
+    max-width:400px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,0.5);
+    margin:auto;
+  }
+  .modal h2{ font-size:20px; margin-bottom:6px; }
+  .modal-subtitle{ color:var(--ink-soft); font-size:13px; margin:0 0 16px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em; }
+  .field input, .field select{
+    width:100%; height:38px; border-radius:8px; border:1px solid var(--glass-border);
+    padding:0 12px; font-size:14.5px; font-family:'Inter',sans-serif;
+    background:rgba(255,255,255,0.06); color:var(--ink);
+  }
+  .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+  .field input::placeholder{ color:var(--ink-faint); }
+  .field-hint{ font-size:12px; color:var(--ink-faint); margin:6px 0 0; }
+  .profile-pic-row{ display:flex; align-items:center; gap:14px; }
+  .bg-preview{
+    width:100%; height:90px; border-radius:10px; border:1px solid var(--glass-border);
+    background-image:var(--bg-default); background-size:cover; background-position:center;
+    margin-bottom:8px;
+  }
+  .bg-actions{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .segmented{ display:flex; gap:8px; }
+  .segmented button{ flex:1; padding:9px 0; border-radius:8px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.06); cursor:pointer; font-size:13.5px; color:var(--ink-soft); }
+  .segmented button.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+  .error-text{ color:var(--error); font-size:12.5px; margin-top:5px; display:none; }
+  .error-text.show{ display:block; }
+
+  /* toast */
+  #toast{
+    position:fixed; left:50%; bottom:90px; transform:translateX(-50%) translateY(20px);
+    background:rgba(20,16,13,0.95); color:var(--ink); padding:10px 18px; border-radius:20px;
+    font-size:13.5px; opacity:0; pointer-events:none; transition:opacity 0.25s ease, transform 0.25s ease;
+    z-index:60; border:1px solid var(--glass-border);
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+
+  @media (max-width:480px){
+    .app-header h1{ font-size:28px; }
+    .detail-meta{ gap:14px; }
+    .goal-card{ gap:14px; padding:16px 18px; }
+    .goal-ring-wrap{ width:76px; height:76px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="bg-layer" class="bg-default"></div>
+<div id="bg-scrim"></div>
+
+<div class="wrap" id="app-content">
+
+  <header class="app-header">
+    <div class="header-top">
+      <div>
+        <h1>Stacks</h1>
+        <p>Every book you're reading, on one shelf.</p>
+      </div>
+      <button class="profile-btn" id="profile-btn" aria-label="Personalize">
+        <span class="profile-avatar" id="profile-avatar">+</span>
+        <span class="profile-name" id="profile-name-label">Add your name</span>
+      </button>
+    </div>
+    <div class="backup-row">
+      <button class="link-btn" id="export-btn">Export data</button>
+      <span class="backup-sep">&middot;</span>
+      <button class="link-btn" id="import-btn">Import data</button>
+      <input type="file" id="import-file" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <div class="modal-overlay" id="profile-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+      <h2 id="profile-modal-title">Personalize</h2>
+      <p class="modal-subtitle">Saved only on this device — nothing is sent anywhere.</p>
+
+      <div class="field profile-pic-row">
+        <span class="profile-avatar profile-avatar-lg" id="profile-avatar-preview">+</span>
+        <div>
+          <button type="button" class="btn" id="profile-pic-btn">Choose photo</button>
+          <input type="file" id="profile-pic-input" accept="image/*" hidden>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="profile-name-input">Name</label>
+        <input id="profile-name-input" type="text" placeholder="Your name" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label>Background</label>
+        <div class="bg-preview" id="bg-preview"></div>
+        <div class="bg-actions">
+          <button type="button" class="btn" id="bg-pic-btn">Choose photo</button>
+          <button type="button" class="link-btn" id="bg-remove-btn">Remove</button>
+          <input type="file" id="bg-pic-input" accept="image/*" hidden>
+        </div>
+        <p class="field-hint">We'll match the app's accent color to it.</p>
+      </div>
+
+      <div class="field">
+        <label for="goal-input">Yearly reading goal</label>
+        <input id="goal-input" type="number" min="1" placeholder="12">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-quiet" id="profile-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="profile-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="goal-section">
+    <div class="goal-card">
+      <div class="goal-ring-wrap">
+        <svg viewBox="0 0 120 120">
+          <circle class="goal-ring-track" cx="60" cy="60" r="52"></circle>
+          <circle class="goal-ring-fill" id="goal-ring-fill" cx="60" cy="60" r="52" stroke-dasharray="326.73" stroke-dashoffset="326.73"></circle>
+        </svg>
+        <div class="goal-ring-number" id="goal-ring-number">0</div>
+      </div>
+      <div class="goal-info">
+        <h3>Reading goal</h3>
+        <p id="goal-caption">Set a goal to see progress.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="stats-row" id="stats-row"></div>
+
+  <section id="shelf-section">
+    <h2>Currently reading</h2>
+    <div class="shelf-outer">
+      <div class="shelf-scroll" id="shelf"></div>
+      <div class="shelf-board"></div>
+    </div>
+    <div class="detail-panel" id="detail-panel" hidden></div>
+  </section>
+
+  <section id="want-section" hidden>
+    <h2>Want to read</h2>
+    <div id="want-list"></div>
+  </section>
+
+  <section id="finished-section" hidden>
+    <h2>Finished</h2>
+    <div id="finished-list"></div>
+  </section>
+
+</div>
+
+<button class="fab" id="fab-add" aria-label="Add a book">+</button>
+
+<div class="modal-overlay" id="add-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title">Add a book</h2>
+    <form id="add-form" novalidate>
+      <div class="field">
+        <label for="f-title">Title</label>
+        <input id="f-title" type="text" placeholder="The Left Hand of Darkness" autocomplete="off">
+        <div class="error-text" id="err-title">Enter a title.</div>
+      </div>
+      <div class="field">
+        <label for="f-author">Author (optional)</label>
+        <input id="f-author" type="text" placeholder="Ursula K. Le Guin" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="f-pages">Total pages</label>
+        <input id="f-pages" type="number" min="1" placeholder="304">
+        <div class="error-text" id="err-pages">Enter the number of pages.</div>
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <div class="segmented" id="status-toggle">
+          <button type="button" data-status="reading" class="active">Reading now</button>
+          <button type="button" data-status="want">Want to read</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-quiet" id="cancel-add">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add book</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  var toastTimer = null;
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  }
+</script>
+
+<script>
+  // ---------- color utilities ----------
+  function hexFromRgb(r,g,b){
+    return '#' + [r,g,b].map(function(v){
+      v = Math.max(0, Math.min(255, Math.round(v)));
+      var h = v.toString(16);
+      return h.length===1 ? '0'+h : h;
+    }).join('');
+  }
+  function rgbFromHex(hex){
+    hex = hex.replace('#','');
+    return [parseInt(hex.substring(0,2),16), parseInt(hex.substring(2,4),16), parseInt(hex.substring(4,6),16)];
+  }
+  function rgbToHsl(r,g,b){
+    r/=255; g/=255; b/=255;
+    var max=Math.max(r,g,b), min=Math.min(r,g,b);
+    var h=0, s, l=(max+min)/2;
+    if(max===min){ h=0; s=0; }
+    else{
+      var d=max-min;
+      s = l>0.5 ? d/(2-max-min) : d/(max+min);
+      if(max===r) h=(g-b)/d + (g<b?6:0);
+      else if(max===g) h=(b-r)/d + 2;
+      else h=(r-g)/d + 4;
+      h/=6;
+    }
+    return [h*360, s, l];
+  }
+  function hslToRgb(h,s,l){
+    h/=360;
+    var r,g,b;
+    if(s===0){ r=g=b=l; }
+    else{
+      var hue2rgb=function(p,q,t){
+        if(t<0) t+=1;
+        if(t>1) t-=1;
+        if(t<1/6) return p+(q-p)*6*t;
+        if(t<1/2) return q;
+        if(t<2/3) return p+(q-p)*(2/3-t)*6;
+        return p;
+      };
+      var q = l<0.5 ? l*(1+s) : l+s-l*s;
+      var p = 2*l-q;
+      r=hue2rgb(p,q,h+1/3);
+      g=hue2rgb(p,q,h);
+      b=hue2rgb(p,q,h-1/3);
+    }
+    return [r*255, g*255, b*255];
+  }
+  function shadeColor(hex, percent){
+    var rgb = rgbFromHex(hex);
+    var t = percent<0 ? 0 : 255;
+    var p = Math.abs(percent)/100;
+    return hexFromRgb(rgb[0]+(t-rgb[0])*p, rgb[1]+(t-rgb[1])*p, rgb[2]+(t-rgb[2])*p);
+  }
+  function extractAccentColor(source){
+    try{
+      var size = 48;
+      var canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(source, 0, 0, size, size);
+      var data = ctx.getImageData(0,0,size,size).data;
+      var buckets = {};
+      for(var i=0;i<data.length;i+=4){
+        var r=data[i], g=data[i+1], b=data[i+2], a=data[i+3];
+        if(a<200) continue;
+        var hsl=rgbToHsl(r,g,b);
+        var h=hsl[0], s=hsl[1], l=hsl[2];
+        if(s<0.15 || l<0.08 || l>0.92) continue;
+        var bucket = Math.floor(h/30);
+        var weight = s*(1-Math.abs(l-0.5)*1.2);
+        if(weight<0.02) weight=0.02;
+        if(!buckets[bucket]) buckets[bucket]={r:0,g:0,b:0,weight:0};
+        buckets[bucket].r += r*weight;
+        buckets[bucket].g += g*weight;
+        buckets[bucket].b += b*weight;
+        buckets[bucket].weight += weight;
+      }
+      var best=null, bestWeight=0;
+      for(var k in buckets){ if(buckets[k].weight>bestWeight){ bestWeight=buckets[k].weight; best=buckets[k]; } }
+      if(!best || bestWeight<1) return null;
+      var r2=best.r/best.weight, g2=best.g/best.weight, b2=best.b/best.weight;
+      var hsl2 = rgbToHsl(r2,g2,b2);
+      var sat = Math.max(0.5, Math.min(0.82, hsl2[1]));
+      var light = Math.max(0.34, Math.min(0.48, hsl2[2]));
+      var rgbFinal = hslToRgb(hsl2[0], sat, light);
+      return hexFromRgb(rgbFinal[0], rgbFinal[1], rgbFinal[2]);
+    }catch(e){
+      console.error('Color extraction failed:', e);
+      return null;
+    }
+  }
+  function loadImageFile(file, maxDim, quality){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(){
+        var img = new Image();
+        img.onload = function(){
+          var scale = Math.min(1, maxDim/Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width*scale));
+          var h = Math.max(1, Math.round(img.height*scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve({ canvas: canvas, dataUrl: canvas.toDataURL('image/jpeg', quality) });
+        };
+        img.onerror = function(){ reject(new Error('Could not read image')); };
+        img.src = reader.result;
+      };
+      reader.onerror = function(){ reject(new Error('Could not read file')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---------- theme ----------
+  var DEFAULT_ACCENT = '#C4692F';
+  function applyTheme(profile){
+    var bgLayer = document.getElementById('bg-layer');
+    if(profile && profile.background){
+      bgLayer.style.backgroundImage = "url('" + profile.background + "')";
+      bgLayer.classList.remove('bg-default');
+    } else {
+      bgLayer.style.backgroundImage = '';
+      bgLayer.classList.add('bg-default');
+    }
+    var accent = (profile && profile.accent) || DEFAULT_ACCENT;
+    document.documentElement.style.setProperty('--accent', accent);
+    document.documentElement.style.setProperty('--accent-strong', shadeColor(accent, -16));
+    document.documentElement.style.setProperty('--accent-soft', shadeColor(accent, 34));
+    var themeMeta = document.querySelector('meta[name="theme-color"]');
+    if(themeMeta) themeMeta.setAttribute('content', accent);
+  }
+
+  // ---------- local profile: name, picture, background, goal. Stored only on this device. ----------
+  var PROFILE_KEY = 'profile';
+  var pendingAvatarDataUrl = null;
+  var pendingBackgroundDataUrl = null;
+  var pendingAccent = null;
+
+  function hasPlatformStorage_p(){
+    return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function';
+  }
+  function defaultProfile(){
+    return { name:'', avatar:'', background:'', accent:'', goal:12 };
+  }
+  async function loadProfile(){
+    if(hasPlatformStorage_p()){
+      try{
+        var res = await window.storage.get(PROFILE_KEY, false);
+        if(res && typeof res.value === 'string') return Object.assign(defaultProfile(), JSON.parse(res.value));
+      }catch(e){ /* fall through */ }
+    }
+    try{
+      var raw = localStorage.getItem('stacks_' + PROFILE_KEY);
+      return raw ? Object.assign(defaultProfile(), JSON.parse(raw)) : defaultProfile();
+    }catch(e){ return defaultProfile(); }
+  }
+  async function saveProfile(profile){
+    var json = JSON.stringify(profile);
+    var okRemote = false;
+    if(hasPlatformStorage_p()){
+      try{ okRemote = !!(await window.storage.set(PROFILE_KEY, json, false)); }catch(e){}
+    }
+    var okLocal = false;
+    try{ localStorage.setItem('stacks_' + PROFILE_KEY, json); okLocal = true; }catch(e){}
+    if(!okRemote && !okLocal){ showToast("Couldn't save — your browser may be blocking storage."); }
+  }
+
+  function initials(name){
+    var parts = name.trim().split(/\s+/).filter(Boolean);
+    if(parts.length===0) return '+';
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+  function renderProfileBadge(profile){
+    var avatarEl = document.getElementById('profile-avatar');
+    var nameEl = document.getElementById('profile-name-label');
+    if(profile.avatar){ avatarEl.style.backgroundImage = 'url(' + profile.avatar + ')'; avatarEl.textContent=''; }
+    else { avatarEl.style.backgroundImage=''; avatarEl.textContent = profile.name ? initials(profile.name) : '+'; }
+    nameEl.textContent = profile.name || 'Add your name';
+  }
+  function updateBgPreview(){
+    var preview = document.getElementById('bg-preview');
+    preview.style.backgroundImage = pendingBackgroundDataUrl ? 'url(' + pendingBackgroundDataUrl + ')' : '';
+  }
+
+  var currentProfile = defaultProfile();
+
+  function openProfileModal(){
+    document.getElementById('profile-name-input').value = currentProfile.name || '';
+    document.getElementById('goal-input').value = currentProfile.goal || 12;
+    pendingAvatarDataUrl = currentProfile.avatar || null;
+    pendingBackgroundDataUrl = currentProfile.background || null;
+    pendingAccent = currentProfile.accent || null;
+    var preview = document.getElementById('profile-avatar-preview');
+    if(pendingAvatarDataUrl){ preview.style.backgroundImage='url('+pendingAvatarDataUrl+')'; preview.textContent=''; }
+    else { preview.style.backgroundImage=''; preview.textContent = currentProfile.name ? initials(currentProfile.name) : '+'; }
+    updateBgPreview();
+    document.getElementById('profile-modal').hidden = false;
+  }
+  function closeProfileModal(){ document.getElementById('profile-modal').hidden = true; }
+
+  document.getElementById('profile-btn').addEventListener('click', openProfileModal);
+  document.getElementById('profile-cancel').addEventListener('click', closeProfileModal);
+  document.getElementById('profile-modal').addEventListener('click', function(e){
+    if(e.target.id === 'profile-modal') closeProfileModal();
+  });
+
+  document.getElementById('profile-pic-btn').addEventListener('click', function(){
+    document.getElementById('profile-pic-input').click();
+  });
+  document.getElementById('profile-pic-input').addEventListener('change', async function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 8*1024*1024){ showToast('Pick a smaller image (under 8MB).'); e.target.value=''; return; }
+    try{
+      var result = await loadImageFile(file, 256, 0.85);
+      pendingAvatarDataUrl = result.dataUrl;
+      var preview = document.getElementById('profile-avatar-preview');
+      preview.style.backgroundImage = 'url(' + pendingAvatarDataUrl + ')';
+      preview.textContent = '';
+    }catch(err){ console.error(err); showToast("Couldn't process that image."); }
+    e.target.value = '';
+  });
+
+  document.getElementById('bg-pic-btn').addEventListener('click', function(){
+    document.getElementById('bg-pic-input').click();
+  });
+  document.getElementById('bg-pic-input').addEventListener('change', async function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 10*1024*1024){ showToast('Pick a smaller image (under 10MB).'); e.target.value=''; return; }
+    try{
+      var result = await loadImageFile(file, 1440, 0.75);
+      pendingBackgroundDataUrl = result.dataUrl;
+      pendingAccent = extractAccentColor(result.canvas) || DEFAULT_ACCENT;
+      updateBgPreview();
+    }catch(err){ console.error(err); showToast("Couldn't process that image."); }
+    e.target.value = '';
+  });
+  document.getElementById('bg-remove-btn').addEventListener('click', function(){
+    pendingBackgroundDataUrl = '';
+    pendingAccent = '';
+    updateBgPreview();
+  });
+
+  document.getElementById('profile-save').addEventListener('click', async function(){
+    var name = document.getElementById('profile-name-input').value.trim();
+    var goalVal = parseInt(document.getElementById('goal-input').value, 10);
+    if(!goalVal || goalVal<1) goalVal = 12;
+    currentProfile = {
+      name: name,
+      avatar: pendingAvatarDataUrl || '',
+      background: pendingBackgroundDataUrl || '',
+      accent: pendingBackgroundDataUrl ? (pendingAccent || DEFAULT_ACCENT) : '',
+      goal: goalVal
+    };
+    await saveProfile(currentProfile);
+    applyTheme(currentProfile);
+    renderProfileBadge(currentProfile);
+    if(window.StacksApp && window.StacksApp.renderAll) window.StacksApp.renderAll();
+    closeProfileModal();
+    showToast('Saved');
+  });
+
+  (async function initProfile(){
+    currentProfile = await loadProfile();
+    applyTheme(currentProfile);
+    renderProfileBadge(currentProfile);
+    if(window.StacksApp && window.StacksApp.start) window.StacksApp.start();
+  })();
+</script>
+
+<script>
+(function(){
+  var STORAGE_KEY = 'library';
+  var books = [];
+  var selectedId = null;
+  var newBookStatus = 'reading';
+
+  var SPINES = [
+    {deep:'#5B4B8A', light:'#B7ACD6'},
+    {deep:'#2F5D62', light:'#A9C7C9'},
+    {deep:'#8A3B3B', light:'#D6ACAC'},
+    {deep:'#96702F', light:'#DDC79B'},
+    {deep:'#3E5C3A', light:'#AFC4AC'},
+    {deep:'#4A5A7A', light:'#B7C0D6'},
+    {deep:'#6B4226', light:'#C9AC97'},
+    {deep:'#3F5B6B', light:'#A9C0CC'}
+  ];
+
+  function hashString(str){
+    var h = 0;
+    for (var i=0; i<str.length; i++){ h = (h*31 + str.charCodeAt(i)) >>> 0; }
+    return h;
+  }
+  function spineFor(book){ return SPINES[hashString(book.title + (book.author||'')) % SPINES.length]; }
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function daysAgoISO(n){
+    var d = new Date();
+    d.setDate(d.getDate()-n);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function formatDate(iso){
+    if(!iso) return '';
+    var d = new Date(iso+'T00:00:00');
+    return d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+  }
+  function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+  var LOCAL_KEY = 'stacks_library_v1';
+  function hasPlatformStorage(){
+    return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function';
+  }
+  function loadFromLocalStorage(){
+    try{ var raw = localStorage.getItem(LOCAL_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
+  }
+  function saveToLocalStorage(){
+    try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(books)); return true; }catch(e){ return false; }
+  }
+  async function loadBooks(){
+    if(hasPlatformStorage()){
+      try{
+        var res = await window.storage.get(STORAGE_KEY, false);
+        books = (res && res.value) ? JSON.parse(res.value) : [];
+        return;
+      }catch(e){ /* fall through */ }
+    }
+    books = loadFromLocalStorage();
+  }
+  async function saveBooks(){
+    var savedRemotely = false;
+    if(hasPlatformStorage()){
+      try{ savedRemotely = !!(await window.storage.set(STORAGE_KEY, JSON.stringify(books), false)); }catch(e){ savedRemotely=false; }
+    }
+    var savedLocally = saveToLocalStorage();
+    if(!savedRemotely && !savedLocally){ showToast("Couldn't save — your browser may be blocking storage."); }
+  }
+
+  function getAllSessionDates(){
+    var set = new Set();
+    books.forEach(function(b){ (b.sessions||[]).forEach(function(s){ if(s.pages>0) set.add(s.date); }); });
+    return set;
+  }
+  function computeStreak(){
+    var dates = getAllSessionDates();
+    var streak = 0;
+    var cursor = new Date();
+    if(!dates.has(todayISO())) cursor.setDate(cursor.getDate()-1);
+    while(true){
+      var iso = cursor.getFullYear()+'-'+String(cursor.getMonth()+1).padStart(2,'0')+'-'+String(cursor.getDate()).padStart(2,'0');
+      if(dates.has(iso)){ streak++; cursor.setDate(cursor.getDate()-1); } else break;
+    }
+    return streak;
+  }
+  function pagesThisWeek(){
+    var cutoff = daysAgoISO(6);
+    var total = 0;
+    books.forEach(function(b){ (b.sessions||[]).forEach(function(s){ if(s.date>=cutoff) total+=s.pages; }); });
+    return total;
+  }
+  function finishedThisYear(){
+    var year = new Date().getFullYear().toString();
+    return books.filter(function(b){ return b.status==='finished' && (b.finishedDate||'').slice(0,4)===year; }).length;
+  }
+  function pace(book){
+    var cutoff = daysAgoISO(6);
+    var total = 0;
+    (book.sessions||[]).forEach(function(s){ if(s.date>=cutoff) total+=s.pages; });
+    if(total<=0) return null;
+    return total/7;
+  }
+
+  function renderStats(){
+    var row = document.getElementById('stats-row');
+    row.innerHTML =
+      '<div class="stat-chip"><div class="num mono">'+computeStreak()+'</div><div class="lbl">Day streak</div></div>'+
+      '<div class="stat-chip"><div class="num mono">'+pagesThisWeek()+'</div><div class="lbl">Pages this week</div></div>';
+  }
+
+  var GOAL_CIRCUMFERENCE = 326.73;
+  function renderGoalRing(){
+    var goal = (typeof currentProfile !== 'undefined' && currentProfile.goal>0) ? currentProfile.goal : 12;
+    var done = finishedThisYear();
+    var pct = Math.max(0, Math.min(1, done/goal));
+    var fillEl = document.getElementById('goal-ring-fill');
+    if(fillEl) fillEl.style.strokeDashoffset = GOAL_CIRCUMFERENCE * (1-pct);
+    var numEl = document.getElementById('goal-ring-number');
+    if(numEl) numEl.textContent = done;
+    var captionEl = document.getElementById('goal-caption');
+    if(captionEl){
+      captionEl.textContent = done>=goal
+        ? 'Goal reached — ' + done + ' of ' + goal + ' books.'
+        : done + ' of ' + goal + ' books this year.';
+    }
+  }
+
+  function lastActivityDate(book){
+    var dates = (book.sessions||[]).map(function(s){ return s.date; });
+    if(dates.length===0) return book.startedDate || '';
+    return dates.reduce(function(a,b){ return a>b?a:b; });
+  }
+
+  function renderShelf(){
+    var shelf = document.getElementById('shelf');
+    var reading = books.filter(function(b){ return b.status==='reading'; })
+      .sort(function(a,b){ return lastActivityDate(b).localeCompare(lastActivityDate(a)); });
+    shelf.innerHTML = '';
+    if(reading.length===0){
+      var empty = document.createElement('div');
+      empty.className = 'section-empty';
+      empty.style.width = '100%';
+      empty.innerHTML = "Nothing on your shelf yet.<br><button class='btn btn-primary' id='empty-add-btn' style='margin-top:10px;'>Add a book</button>";
+      shelf.appendChild(empty);
+      document.getElementById('empty-add-btn').addEventListener('click', openAddModal);
+    } else {
+      reading.forEach(function(b){
+        var pct = Math.max(0, Math.min(100, Math.round((b.currentPage/b.totalPages)*100)));
+        var colors = spineFor(b);
+        var width = Math.max(44, Math.min(92, 40 + b.totalPages/8));
+        var el = document.createElement('div');
+        el.className = 'spine' + (b.id===selectedId ? ' selected' : '');
+        el.style.width = width + 'px';
+        el.style.background = colors.light;
+        el.tabIndex = 0;
+        el.setAttribute('role','button');
+        el.setAttribute('aria-label', b.title + ', ' + pct + ' percent read');
+        el.innerHTML =
+          '<div class="spine-fill" style="height:'+pct+'%; background:'+colors.deep+';"></div>'+
+          '<div class="spine-title">'+escapeHTML(b.title)+'</div>';
+        el.addEventListener('click', function(){ selectBook(b.id); });
+        el.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectBook(b.id); } });
+        shelf.appendChild(el);
+      });
+      var addBtn = document.createElement('button');
+      addBtn.className = 'add-spine';
+      addBtn.setAttribute('aria-label','Add a book');
+      addBtn.textContent = '+';
+      addBtn.addEventListener('click', openAddModal);
+      shelf.appendChild(addBtn);
+    }
+  }
+
+  function escapeHTML(str){ var d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+
+  function selectBook(id){ selectedId = (selectedId===id) ? null : id; renderShelf(); renderDetail(); }
+
+  function renderDetail(){
+    var panel = document.getElementById('detail-panel');
+    var book = books.find(function(b){ return b.id===selectedId; });
+    if(!book){ panel.hidden=true; panel.innerHTML=''; return; }
+    panel.hidden = false;
+    var pct = Math.max(0, Math.min(100, Math.round((book.currentPage/book.totalPages)*100)));
+    var p = pace(book);
+    var remaining = Math.max(0, book.totalPages - book.currentPage);
+    var etaText = 'Log a few pages to see your pace';
+    if(p){
+      var days = Math.ceil(remaining/p);
+      etaText = days<=0 ? 'Almost there' : ('~'+days+' day'+(days===1?'':'s')+' left at this pace');
+    }
+    panel.innerHTML =
+      '<div class="detail-top">'+
+        '<div><h3>'+escapeHTML(book.title)+'</h3><div class="detail-author">'+escapeHTML(book.author||'')+'</div></div>'+
+        '<button class="icon-btn" id="close-detail" aria-label="Close">&times;</button>'+
+      '</div>'+
+      '<div class="progress-track"><div class="progress-fill-h" style="width:'+pct+'%;"></div></div>'+
+      '<div class="progress-label"><span>Page '+book.currentPage+' of '+book.totalPages+'</span><span>'+pct+'%</span></div>'+
+      '<div class="detail-meta">'+
+        '<div><div class="num mono">'+(p?Math.round(p):'—')+'</div><div class="lbl">Pages / day</div></div>'+
+        '<div><div class="num" style="font-size:13.5px; padding-top:4px;">'+etaText+'</div></div>'+
+      '</div>'+
+      '<div class="log-row">'+
+        '<button class="chip" data-add="10">+10 pages</button>'+
+        '<button class="chip" data-add="25">+25 pages</button>'+
+        '<button class="chip" data-add="50">+50 pages</button>'+
+        '<input type="number" class="page-input" id="set-page-input" value="'+book.currentPage+'" min="0" max="'+book.totalPages+'" aria-label="Current page">'+
+        '<button class="btn" id="set-page-btn">Set page</button>'+
+      '</div>'+
+      '<div class="detail-actions">'+
+        '<button class="btn" id="mark-finished-btn">Mark as finished</button>'+
+        '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+      '</div>';
+
+    panel.querySelector('#close-detail').addEventListener('click', function(){ selectedId=null; renderShelf(); renderDetail(); });
+    panel.querySelectorAll('[data-add]').forEach(function(chip){
+      chip.addEventListener('click', function(){ applyProgress(book, parseInt(chip.getAttribute('data-add'),10)); });
+    });
+    panel.querySelector('#set-page-btn').addEventListener('click', function(){
+      var val = parseInt(panel.querySelector('#set-page-input').value, 10);
+      if(isNaN(val) || val<0) return;
+      applyProgress(book, val-book.currentPage, val);
+    });
+    panel.querySelector('#mark-finished-btn').addEventListener('click', function(){ finishBook(book); });
+    panel.querySelector('#remove-book-btn').addEventListener('click', function(){
+      if(confirm('Remove "'+book.title+'" from Stacks?')){
+        books = books.filter(function(b){ return b.id!==book.id; });
+        selectedId = null;
+        saveBooks();
+        renderAll();
+        showToast('Removed');
+      }
+    });
+  }
+
+  function applyProgress(book, delta, absoluteValue){
+    if(delta>0){ book.sessions = book.sessions || []; book.sessions.push({date: todayISO(), pages: delta}); }
+    book.currentPage = (typeof absoluteValue==='number') ? absoluteValue : Math.min(book.totalPages, book.currentPage+delta);
+    if(book.currentPage >= book.totalPages){ finishBook(book); return; }
+    saveBooks();
+    renderAll();
+    if(delta>0) showToast('Logged '+delta+' pages');
+  }
+
+  function finishBook(book){
+    book.status = 'finished';
+    book.currentPage = book.totalPages;
+    book.finishedDate = todayISO();
+    selectedId = null;
+    saveBooks();
+    renderAll();
+    showToast('Finished — nice work.');
+  }
+
+  function startReading(book){
+    book.status = 'reading';
+    book.startedDate = todayISO();
+    saveBooks();
+    renderAll();
+    showToast('Moved to your shelf');
+  }
+
+  function renderWant(){
+    var section = document.getElementById('want-section');
+    var list = document.getElementById('want-list');
+    var items = books.filter(function(b){ return b.status==='want'; });
+    if(items.length===0){ section.hidden=true; return; }
+    section.hidden = false;
+    list.innerHTML = '';
+    items.forEach(function(b){
+      var row = document.createElement('div');
+      row.className = 'book-row';
+      row.innerHTML =
+        '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+' &middot; '+b.totalPages+' pages</div></div>'+
+        '<div class="row-actions">'+
+          '<button class="btn" data-start="'+b.id+'">Start reading</button>'+
+          '<button class="icon-btn" data-remove="'+b.id+'" aria-label="Remove">&times;</button>'+
+        '</div>';
+      list.appendChild(row);
+    });
+    list.querySelectorAll('[data-start]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var b = books.find(function(x){ return x.id===btn.getAttribute('data-start'); });
+        if(b) startReading(b);
+      });
+    });
+    list.querySelectorAll('[data-remove]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var b = books.find(function(x){ return x.id===btn.getAttribute('data-remove'); });
+        if(b && confirm('Remove "'+b.title+'"?')){
+          books = books.filter(function(x){ return x.id!==b.id; });
+          saveBooks();
+          renderAll();
+        }
+      });
+    });
+  }
+
+  function renderFinished(){
+    var section = document.getElementById('finished-section');
+    var list = document.getElementById('finished-list');
+    var items = books.filter(function(b){ return b.status==='finished'; })
+      .sort(function(a,b){ return (b.finishedDate||'').localeCompare(a.finishedDate||''); });
+    if(items.length===0){ section.hidden=true; return; }
+    section.hidden = false;
+    list.innerHTML = '';
+    items.forEach(function(b){
+      var row = document.createElement('div');
+      row.className = 'book-row';
+      row.innerHTML =
+        '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+' &middot; finished '+formatDate(b.finishedDate)+'</div></div>'+
+        '<div class="row-actions"><button class="icon-btn" data-remove-f="'+b.id+'" aria-label="Remove">&times;</button></div>';
+      list.appendChild(row);
+    });
+    list.querySelectorAll('[data-remove-f]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var b = books.find(function(x){ return x.id===btn.getAttribute('data-remove-f'); });
+        if(b && confirm('Remove "'+b.title+'" from your finished list?')){
+          books = books.filter(function(x){ return x.id!==b.id; });
+          saveBooks();
+          renderAll();
+        }
+      });
+    });
+  }
+
+  function renderAll(){
+    renderStats();
+    renderGoalRing();
+    renderShelf();
+    renderDetail();
+    renderWant();
+    renderFinished();
+  }
+
+  function openAddModal(){
+    document.getElementById('add-modal').hidden = false;
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-author').value = '';
+    document.getElementById('f-pages').value = '';
+    document.getElementById('err-title').classList.remove('show');
+    document.getElementById('err-pages').classList.remove('show');
+    newBookStatus = 'reading';
+    document.querySelectorAll('#status-toggle button').forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-status')==='reading');
+    });
+    document.getElementById('f-title').focus();
+  }
+  function closeAddModal(){ document.getElementById('add-modal').hidden = true; }
+
+  document.getElementById('fab-add').addEventListener('click', openAddModal);
+  document.getElementById('cancel-add').addEventListener('click', closeAddModal);
+  document.getElementById('add-modal').addEventListener('click', function(e){
+    if(e.target.id === 'add-modal') closeAddModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape'){
+      if(!document.getElementById('add-modal').hidden) closeAddModal();
+      if(!document.getElementById('profile-modal').hidden) closeProfileModal();
+    }
+  });
+  document.querySelectorAll('#status-toggle button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      newBookStatus = btn.getAttribute('data-status');
+      document.querySelectorAll('#status-toggle button').forEach(function(b){ b.classList.toggle('active', b===btn); });
+    });
+  });
+
+  document.getElementById('add-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    try{
+      var title = document.getElementById('f-title').value.trim();
+      var author = document.getElementById('f-author').value.trim();
+      var pages = parseInt(document.getElementById('f-pages').value, 10);
+      var titleErr = document.getElementById('err-title');
+      var pagesErr = document.getElementById('err-pages');
+      var valid = true;
+      if(!title){ titleErr.classList.add('show'); valid=false; } else titleErr.classList.remove('show');
+      if(!pages || pages<1){ pagesErr.classList.add('show'); valid=false; } else pagesErr.classList.remove('show');
+      if(!valid) return;
+      var book = {
+        id: genId(), title: title, author: author, totalPages: pages, currentPage: 0,
+        status: newBookStatus, startedDate: newBookStatus==='reading' ? todayISO() : null,
+        finishedDate: null, sessions: []
+      };
+      books.push(book);
+      saveBooks();
+      closeAddModal();
+      renderAll();
+      showToast(newBookStatus==='reading' ? 'Added to your shelf' : 'Added to your list');
+    }catch(err){
+      console.error('Add book failed:', err);
+      showToast('Something went wrong. Try again.');
+    }
+  });
+
+  document.getElementById('export-btn').addEventListener('click', function(){
+    try{
+      var blob = new Blob([JSON.stringify(books, null, 2)], {type:'application/json'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'stacks-backup-' + todayISO() + '.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded — move this file to your other device');
+    }catch(err){
+      console.error('Export failed:', err);
+      showToast("Couldn't export. Try again.");
+    }
+  });
+
+  document.getElementById('import-btn').addEventListener('click', function(){
+    document.getElementById('import-file').click();
+  });
+  document.getElementById('import-file').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var incoming = JSON.parse(reader.result);
+        if(!Array.isArray(incoming)) throw new Error('Not a valid backup file');
+        var replace = confirm('Import '+incoming.length+' book'+(incoming.length===1?'':'s')+'? This replaces everything currently on this device.');
+        if(!replace) return;
+        books = incoming;
+        saveBooks();
+        selectedId = null;
+        renderAll();
+        showToast('Imported ' + incoming.length + ' book' + (incoming.length===1?'':'s'));
+      }catch(err){
+        console.error('Import failed:', err);
+        showToast("That file doesn't look like a Stacks backup.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  var started = false;
+  window.StacksApp = {
+    start: async function(){
+      if(started) return;
+      started = true;
+      await loadBooks();
+      renderAll();
+    },
+    renderAll: function(){ if(started) renderAll(); }
+  };
+})();
+</script>
+
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(err){
+        console.error('Service worker registration failed:', err);
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
