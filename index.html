@@ -105,7 +105,7 @@
   .backup-sep{ color:var(--ink-faint); margin:0 8px; font-size:12.5px; }
 
   /* shared glass surface */
-  .stat-chip, .shelf-outer, .book-row, .goal-card, .section-empty{
+  .stat-chip, .book-row, .goal-card, .section-empty, .book-card{
     background:var(--glass);
     backdrop-filter:var(--glass-blur);
     -webkit-backdrop-filter:var(--glass-blur);
@@ -135,40 +135,36 @@
   .section-empty{ color:var(--ink-soft); font-size:14px; border-radius:var(--radius); padding:22px; text-align:center; border-style:dashed; }
   .section-empty button{margin-top:12px;}
 
-  /* shelf: the signature element */
-  .shelf-outer{ position:relative; border-radius:14px; padding:22px 18px 0; }
-  .shelf-scroll{ display:flex; align-items:flex-end; gap:10px; overflow-x:auto; padding-bottom:20px; min-height:210px; }
-  .shelf-board{
-    height:10px;
-    background:linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.08));
-    border-radius:2px;
-    box-shadow:0 3px 6px rgba(0,0,0,0.35);
-    margin:0 18px 22px;
-  }
-  .spine{
-    position:relative; height:190px; border-radius:3px 3px 1px 1px; cursor:pointer;
-    flex:0 0 auto; overflow:hidden;
-    box-shadow:1px 0 0 rgba(0,0,0,0.15) inset, -1px 0 0 rgba(255,255,255,0.08) inset;
+  /* shelf: simple horizontal-scrolling book cards */
+  .shelf-scroll{ display:flex; align-items:stretch; gap:10px; overflow-x:auto; padding:4px 4px 14px; }
+  .book-card{
+    position:relative;
+    flex:0 0 136px; width:136px;
+    border-radius:12px;
+    border-left:4px solid var(--accent);
+    padding:14px 12px;
+    cursor:pointer;
+    display:flex; flex-direction:column; gap:14px;
     transition:transform 0.15s ease;
   }
-  .spine:hover{ transform:translateY(-4px); }
-  .spine:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
-  .spine.selected{ transform:translateY(-6px); box-shadow:0 6px 16px rgba(0,0,0,0.45); }
-  .spine-fill{ position:absolute; left:0; right:0; bottom:0; transition:height 0.4s ease; }
-  .spine-title{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    writing-mode:vertical-rl; text-orientation:mixed;
-    font-family:'Fraunces',serif; font-size:13px; font-weight:500;
-    color:rgba(255,255,255,0.94); padding:10px 0;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:0.01em;
+  .book-card:hover{ transform:translateY(-3px); }
+  .book-card:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .book-card.selected{ transform:translateY(-4px); box-shadow:0 6px 16px rgba(0,0,0,0.45); border-color:var(--accent); }
+  .book-card-title{
+    font-family:'Fraunces',serif; font-weight:500; font-size:14.5px; line-height:1.3;
+    color:var(--ink);
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
   }
-  .add-spine{
-    flex:0 0 auto; width:52px; height:190px; border-radius:3px;
+  .book-card-progress-track{ height:6px; background:rgba(255,255,255,0.16); border-radius:4px; overflow:hidden; margin-top:auto; }
+  .book-card-progress-fill{ height:100%; background:var(--accent); border-radius:4px; transition:width 0.4s ease; }
+  .add-card{
+    flex:0 0 90px; width:90px; min-height:96px;
+    border-radius:12px;
     border:1.5px dashed var(--glass-border); background:transparent;
-    color:var(--ink-soft); font-size:22px; cursor:pointer;
+    color:var(--ink-soft); font-size:24px; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
-  .add-spine:hover{ border-color:var(--accent); color:var(--accent-soft); }
+  .add-card:hover{ border-color:var(--accent); color:var(--accent-soft); }
 
   /* detail panel: near-opaque for readability */
   .detail-panel{
@@ -383,10 +379,7 @@
 
   <section id="shelf-section">
     <h2>Currently reading</h2>
-    <div class="shelf-outer">
-      <div class="shelf-scroll" id="shelf"></div>
-      <div class="shelf-board"></div>
-    </div>
+    <div class="shelf-scroll" id="shelf"></div>
     <div class="detail-panel" id="detail-panel" hidden></div>
   </section>
 
@@ -778,8 +771,10 @@
     if(hasPlatformStorage()){
       try{
         var res = await window.storage.get(STORAGE_KEY, false);
-        books = (res && res.value) ? JSON.parse(res.value) : [];
-        return;
+        if(res && typeof res.value === 'string'){
+          books = JSON.parse(res.value);
+          return;
+        }
       }catch(e){ /* fall through */ }
     }
     books = loadFromLocalStorage();
@@ -873,23 +868,21 @@
       reading.forEach(function(b){
         var pct = Math.max(0, Math.min(100, Math.round((b.currentPage/b.totalPages)*100)));
         var colors = spineFor(b);
-        var width = Math.max(44, Math.min(92, 40 + b.totalPages/8));
         var el = document.createElement('div');
-        el.className = 'spine' + (b.id===selectedId ? ' selected' : '');
-        el.style.width = width + 'px';
-        el.style.background = colors.light;
+        el.className = 'book-card' + (b.id===selectedId ? ' selected' : '');
+        el.style.borderLeftColor = colors.deep;
         el.tabIndex = 0;
         el.setAttribute('role','button');
         el.setAttribute('aria-label', b.title + ', ' + pct + ' percent read');
         el.innerHTML =
-          '<div class="spine-fill" style="height:'+pct+'%; background:'+colors.deep+';"></div>'+
-          '<div class="spine-title">'+escapeHTML(b.title)+'</div>';
+          '<div class="book-card-title">'+escapeHTML(b.title)+'</div>'+
+          '<div class="book-card-progress-track"><div class="book-card-progress-fill" style="width:'+pct+'%;"></div></div>';
         el.addEventListener('click', function(){ selectBook(b.id); });
         el.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectBook(b.id); } });
         shelf.appendChild(el);
       });
       var addBtn = document.createElement('button');
-      addBtn.className = 'add-spine';
+      addBtn.className = 'add-card';
       addBtn.setAttribute('aria-label','Add a book');
       addBtn.textContent = '+';
       addBtn.addEventListener('click', openAddModal);
@@ -926,9 +919,8 @@
         '<div><div class="num" style="font-size:13.5px; padding-top:4px;">'+etaText+'</div></div>'+
       '</div>'+
       '<div class="log-row">'+
-        '<button class="chip" data-add="10">+10 pages</button>'+
+        '<button class="chip" data-add="1">+1 page</button>'+
         '<button class="chip" data-add="25">+25 pages</button>'+
-        '<button class="chip" data-add="50">+50 pages</button>'+
         '<input type="number" class="page-input" id="set-page-input" value="'+book.currentPage+'" min="0" max="'+book.totalPages+'" aria-label="Current page">'+
         '<button class="btn" id="set-page-btn">Set page</button>'+
       '</div>'+
