@@ -33,17 +33,18 @@ README.md
 ## 3. Your data
 
 - Books, your name/photo, and your background image are all saved in the browser's local storage on that one device — nothing is sent anywhere.
-- Use **Export data** / **Import data** inside the app to move your library to another device, or as a manual backup.
+- Use **Export data** / **Import data** inside the app to move your library to another device, or as a manual backup. Exporting now and then is a good habit.
+- **iPhone note:** Safari can clear a website's saved data after about a week of not opening it. Adding Stacks to the Home Screen (step 2) avoids this, so encourage people to do that.
 
 ## 4. Deploying updates later
 
 Whenever you push changed files to the repo, open `sw.js` first and bump:
 
 ```js
-var CACHE_NAME = 'stacks-cache-v1';
+var CACHE_NAME = 'stacks-cache-v2';
 ```
 
-to `v2`, `v3`, etc. This tells returning visitors' browsers to fetch the new version instead of serving the old cached copy. If you skip this step, people who already installed the app may keep seeing the old version until the cache happens to expire.
+to `v3`, `v4`, etc. The app always fetches the latest files when online, so updates show up quickly either way — bumping just clears out the old offline copies. Your users' saved books are never touched by an update.
 
 ## About the design
 

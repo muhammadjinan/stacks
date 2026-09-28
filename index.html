@@ -444,6 +444,85 @@
 </script>
 
 <script>
+  // ---------- storage: one simple, synchronous place for everything saved on this device ----------
+  // Plain localStorage, read BEFORE anything is drawn, so there is no timing to get wrong.
+  var BOOKS_KEY = 'stacks_library_v1';
+  var VALID_STATUS = { reading:1, want:1, finished:1 };
+
+  function safeGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+  function safeSet(key, value){ try{ localStorage.setItem(key, value); return true; }catch(e){ return false; } }
+  function makeId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+  function normalizeBook(b){
+    if(!b || typeof b !== 'object') return null;
+    var title = (typeof b.title === 'string') ? b.title.trim() : '';
+    if(!title) return null;
+    var total = Math.round(Number(b.totalPages));
+    if(!isFinite(total) || total < 1) total = 1;
+    var cur = Math.round(Number(b.currentPage));
+    if(!isFinite(cur) || cur < 0) cur = 0;
+    if(cur > total) cur = total;
+    var sessions = [];
+    if(Array.isArray(b.sessions)){
+      b.sessions.forEach(function(s){
+        var pages = s ? Math.round(Number(s.pages)) : NaN;
+        if(s && typeof s.date === 'string' && isFinite(pages) && pages > 0) sessions.push({ date: s.date, pages: pages });
+      });
+    }
+    return {
+      id: (typeof b.id === 'string' && b.id) ? b.id : makeId(),
+      title: title,
+      author: (typeof b.author === 'string') ? b.author : '',
+      totalPages: total,
+      currentPage: cur,
+      status: VALID_STATUS[b.status] ? b.status : 'reading',
+      startedDate: (typeof b.startedDate === 'string') ? b.startedDate : null,
+      finishedDate: (typeof b.finishedDate === 'string') ? b.finishedDate : null,
+      sessions: sessions
+    };
+  }
+
+  // Cleans any list of books (from storage or an imported file); drops entries that can't be a book.
+  function cleanBooks(list){
+    var seen = {}, out = [];
+    list.forEach(function(item){
+      var b = normalizeBook(item);
+      if(!b) return;
+      while(seen[b.id]) b.id = makeId();
+      seen[b.id] = true;
+      out.push(b);
+    });
+    return out;
+  }
+
+  function loadBooksFromStorage(){
+    var raw = safeGet(BOOKS_KEY);
+    if(raw === null || raw === '') return [];
+    try{
+      var parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) throw new Error('not a list');
+      var cleaned = cleanBooks(parsed);
+      if(parsed.length && !cleaned.length) throw new Error('nothing usable');
+      return cleaned;
+    }catch(e){
+      // Never let unreadable data be silently overwritten: keep a copy first.
+      safeSet(BOOKS_KEY + '_unreadable', raw);
+      showToast("Your saved books couldn't be read. A copy was kept safe.");
+      return [];
+    }
+  }
+  function saveBooksToStorage(list){ return safeSet(BOOKS_KEY, JSON.stringify(list)); }
+
+  // Ask the browser not to clear this site's data when the device is short on space.
+  try{
+    if(navigator.storage && navigator.storage.persist){
+      var persistReq = navigator.storage.persist();
+      if(persistReq && persistReq.catch) persistReq.catch(function(){});
+    }
+  }catch(e){}
+</script>
+
+<script>
   // ---------- color utilities ----------
   function hexFromRgb(r,g,b){
     return '#' + [r,g,b].map(function(v){
@@ -579,38 +658,32 @@
   }
 
   // ---------- local profile: name, picture, background, goal. Stored only on this device. ----------
-  var PROFILE_KEY = 'profile';
+  var PROFILE_KEY = 'stacks_profile';
   var pendingAvatarDataUrl = null;
   var pendingBackgroundDataUrl = null;
   var pendingAccent = null;
 
-  function hasPlatformStorage_p(){
-    return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function';
-  }
   function defaultProfile(){
     return { name:'', avatar:'', background:'', accent:'', goal:12 };
   }
-  async function loadProfile(){
-    if(hasPlatformStorage_p()){
-      try{
-        var res = await window.storage.get(PROFILE_KEY, false);
-        if(res && typeof res.value === 'string') return Object.assign(defaultProfile(), JSON.parse(res.value));
-      }catch(e){ /* fall through */ }
-    }
+  function loadProfile(){
+    var raw = safeGet(PROFILE_KEY);
+    if(!raw) return defaultProfile();
     try{
-      var raw = localStorage.getItem('stacks_' + PROFILE_KEY);
-      return raw ? Object.assign(defaultProfile(), JSON.parse(raw)) : defaultProfile();
-    }catch(e){ return defaultProfile(); }
-  }
-  async function saveProfile(profile){
-    var json = JSON.stringify(profile);
-    var okRemote = false;
-    if(hasPlatformStorage_p()){
-      try{ okRemote = !!(await window.storage.set(PROFILE_KEY, json, false)); }catch(e){}
+      var p = JSON.parse(raw);
+      if(!p || typeof p !== 'object') throw new Error('not an object');
+      return Object.assign(defaultProfile(), p);
+    }catch(e){
+      safeSet(PROFILE_KEY + '_unreadable', raw);
+      return defaultProfile();
     }
-    var okLocal = false;
-    try{ localStorage.setItem('stacks_' + PROFILE_KEY, json); okLocal = true; }catch(e){}
-    if(!okRemote && !okLocal){ showToast("Couldn't save — your browser may be blocking storage."); }
+  }
+  function saveProfile(profile){
+    if(!safeSet(PROFILE_KEY, JSON.stringify(profile))){
+      showToast("Couldn't save — your browser may be blocking storage.");
+      return false;
+    }
+    return true;
   }
 
   function initials(name){
@@ -690,7 +763,7 @@
     updateBgPreview();
   });
 
-  document.getElementById('profile-save').addEventListener('click', async function(){
+  document.getElementById('profile-save').addEventListener('click', function(){
     var name = document.getElementById('profile-name-input').value.trim();
     var goalVal = parseInt(document.getElementById('goal-input').value, 10);
     if(!goalVal || goalVal<1) goalVal = 12;
@@ -701,7 +774,7 @@
       accent: pendingBackgroundDataUrl ? (pendingAccent || DEFAULT_ACCENT) : '',
       goal: goalVal
     };
-    await saveProfile(currentProfile);
+    saveProfile(currentProfile);
     applyTheme(currentProfile);
     renderProfileBadge(currentProfile);
     if(window.StacksApp && window.StacksApp.renderAll) window.StacksApp.renderAll();
@@ -709,17 +782,14 @@
     showToast('Saved');
   });
 
-  (async function initProfile(){
-    currentProfile = await loadProfile();
-    applyTheme(currentProfile);
-    renderProfileBadge(currentProfile);
-    if(window.StacksApp && window.StacksApp.start) window.StacksApp.start();
-  })();
+  // Start-up: load the saved profile and apply it immediately (synchronous, so nothing shows un-themed).
+  currentProfile = loadProfile();
+  applyTheme(currentProfile);
+  renderProfileBadge(currentProfile);
 </script>
 
 <script>
 (function(){
-  var STORAGE_KEY = 'library';
   var books = [];
   var selectedId = null;
   var newBookStatus = 'reading';
@@ -757,35 +827,8 @@
   }
   function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
-  var LOCAL_KEY = 'stacks_library_v1';
-  function hasPlatformStorage(){
-    return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function';
-  }
-  function loadFromLocalStorage(){
-    try{ var raw = localStorage.getItem(LOCAL_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
-  }
-  function saveToLocalStorage(){
-    try{ localStorage.setItem(LOCAL_KEY, JSON.stringify(books)); return true; }catch(e){ return false; }
-  }
-  async function loadBooks(){
-    if(hasPlatformStorage()){
-      try{
-        var res = await window.storage.get(STORAGE_KEY, false);
-        if(res && typeof res.value === 'string'){
-          books = JSON.parse(res.value);
-          return;
-        }
-      }catch(e){ /* fall through */ }
-    }
-    books = loadFromLocalStorage();
-  }
-  async function saveBooks(){
-    var savedRemotely = false;
-    if(hasPlatformStorage()){
-      try{ savedRemotely = !!(await window.storage.set(STORAGE_KEY, JSON.stringify(books), false)); }catch(e){ savedRemotely=false; }
-    }
-    var savedLocally = saveToLocalStorage();
-    if(!savedRemotely && !savedLocally){ showToast("Couldn't save — your browser may be blocking storage."); }
+  function saveBooks(){
+    if(!saveBooksToStorage(books)) showToast("Couldn't save — your browser may be blocking storage.");
   }
 
   function getAllSessionDates(){
@@ -1137,13 +1180,15 @@
       try{
         var incoming = JSON.parse(reader.result);
         if(!Array.isArray(incoming)) throw new Error('Not a valid backup file');
-        var replace = confirm('Import '+incoming.length+' book'+(incoming.length===1?'':'s')+'? This replaces everything currently on this device.');
+        var cleaned = cleanBooks(incoming);
+        if(incoming.length && !cleaned.length) throw new Error('No usable books in file');
+        var replace = confirm('Import '+cleaned.length+' book'+(cleaned.length===1?'':'s')+'? This replaces everything currently on this device.');
         if(!replace) return;
-        books = incoming;
+        books = cleaned;
         saveBooks();
         selectedId = null;
         renderAll();
-        showToast('Imported ' + incoming.length + ' book' + (incoming.length===1?'':'s'));
+        showToast('Imported ' + cleaned.length + ' book' + (cleaned.length===1?'':'s'));
       }catch(err){
         console.error('Import failed:', err);
         showToast("That file doesn't look like a Stacks backup.");
@@ -1153,16 +1198,10 @@
     e.target.value = '';
   });
 
-  var started = false;
-  window.StacksApp = {
-    start: async function(){
-      if(started) return;
-      started = true;
-      await loadBooks();
-      renderAll();
-    },
-    renderAll: function(){ if(started) renderAll(); }
-  };
+  // Start-up: read the saved books first, then draw. Synchronous, so nothing can be saved before it has loaded.
+  books = loadBooksFromStorage();
+  window.StacksApp = { renderAll: renderAll };
+  renderAll();
 })();
 </script>
 

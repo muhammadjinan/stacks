@@ -1,6 +1,6 @@
-// Bump this string every time you redeploy updated files, so returning
-// visitors get the new version instead of a stale cached copy.
-var CACHE_NAME = 'stacks-cache-v1';
+// Bump this string every time you redeploy updated files. It clears out
+// caches from older versions so nobody is stuck on an old copy.
+var CACHE_NAME = 'stacks-cache-v2';
 
 var ASSETS_TO_CACHE = [
   './',
@@ -34,20 +34,26 @@ self.addEventListener('activate', function(event){
   self.clients.claim();
 });
 
-// Cache-first for speed and offline reliability, refreshing the cache
-// in the background whenever the network is available.
+// Network-first: when online, always get the latest files (and refresh the
+// offline copy). The cache is only used when the network isn't available.
+// Note: this only handles the app's own files. Your saved books and profile
+// live in the browser's local storage, which this file never touches.
 self.addEventListener('fetch', function(event){
-  if(event.request.method !== 'GET') return;
+  var req = event.request;
+  if(req.method !== 'GET') return;
+  if(new URL(req.url).origin !== self.location.origin) return; // fonts etc. load normally
+
   event.respondWith(
-    caches.match(event.request).then(function(cached){
-      var networkFetch = fetch(event.request).then(function(response){
-        if(response && response.status === 200 && response.type === 'basic'){
-          var copy = response.clone();
-          caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, copy); });
-        }
-        return response;
-      }).catch(function(){ return cached; });
-      return cached || networkFetch;
+    fetch(req, { cache: 'no-cache' }).then(function(response){
+      if(response && response.status === 200 && response.type === 'basic'){
+        var copy = response.clone();
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(req, copy); });
+      }
+      return response;
+    }).catch(function(){
+      return caches.match(req, { ignoreSearch: true }).then(function(hit){
+        return hit || caches.match('./index.html');
+      });
     })
   );
 });
