@@ -129,6 +129,22 @@
   .goal-info h3{ font-size:16px; margin-bottom:4px; }
   .goal-info p{ margin:0; font-size:12.5px; color:var(--ink-soft); }
 
+  /* genre filter */
+  .genre-filter-row{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 22px; }
+  .genre-chip{
+    background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); border-radius:20px;
+    padding:7px 14px; font-size:13px; cursor:pointer; color:var(--ink-soft);
+  }
+  .genre-chip:hover{ border-color:var(--accent); }
+  .genre-chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .genre-chip:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .detail-genre{
+    display:block; margin-top:8px; height:28px; font-size:12.5px; padding:0 10px;
+    border-radius:14px; border:1px solid var(--glass-border);
+    background:rgba(255,255,255,0.08); color:var(--ink-soft); cursor:pointer;
+  }
+  .detail-genre:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+
   /* sections */
   section{margin-bottom:34px;}
   section h2{font-size:19px; margin-bottom:14px;}
@@ -215,9 +231,13 @@
   .detail-actions{ display:flex; gap:10px; margin-top:18px; border-top:1px solid var(--glass-border); padding-top:14px; }
 
   /* lists */
-  .book-row{ display:flex; align-items:center; justify-content:space-between; border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+  .book-row{ display:flex; align-items:center; justify-content:space-between; border-radius:10px; padding:12px 14px; margin-bottom:8px; cursor:pointer; }
+  .book-row:hover{ border-color:var(--accent); }
+  .book-row.selected{ border-color:var(--accent); }
+  .book-row:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   .book-row .title{ font-size:14.5px; font-weight:500; }
   .book-row .sub{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .detail-info{ color:var(--ink-soft); font-size:13.5px; margin-top:14px; }
   .row-actions{ display:flex; gap:6px; align-items:center; }
 
   /* fab */
@@ -377,10 +397,13 @@
 
   <div class="stats-row" id="stats-row"></div>
 
+  <div class="genre-filter-row" id="genre-filter-row" hidden></div>
+
+  <div class="detail-panel" id="detail-panel" hidden></div>
+
   <section id="shelf-section">
     <h2>Currently reading</h2>
     <div class="shelf-scroll" id="shelf"></div>
-    <div class="detail-panel" id="detail-panel" hidden></div>
   </section>
 
   <section id="want-section" hidden>
@@ -414,6 +437,10 @@
         <label for="f-pages">Total pages</label>
         <input id="f-pages" type="number" min="1" placeholder="304">
         <div class="error-text" id="err-pages">Enter the number of pages.</div>
+      </div>
+      <div class="field">
+        <label for="f-genre">Genre (optional)</label>
+        <select id="f-genre"></select>
       </div>
       <div class="field">
         <label>Status</label>
@@ -473,6 +500,7 @@
       id: (typeof b.id === 'string' && b.id) ? b.id : makeId(),
       title: title,
       author: (typeof b.author === 'string') ? b.author : '',
+      genre: (typeof b.genre === 'string' && b.genre.trim()) ? b.genre.trim() : 'Unknown',
       totalPages: total,
       currentPage: cur,
       status: VALID_STATUS[b.status] ? b.status : 'reading',
@@ -793,6 +821,18 @@
   var books = [];
   var selectedId = null;
   var newBookStatus = 'reading';
+  var activeGenre = 'all';
+
+  var GENRES = ['Unknown','Biography & Memoir','Business','Fantasy & Sci-Fi','Fiction','History',
+    'Mystery & Thriller','Non-Fiction','Poetry','Religion & Spirituality','Romance','Science',
+    'Self-Help','Young Adult'];
+
+  function genreOptionsHTML(selected){
+    return GENRES.map(function(g){
+      return '<option value="'+g+'"'+(g===selected?' selected':'')+'>'+g+'</option>';
+    }).join('');
+  }
+  document.getElementById('f-genre').innerHTML = genreOptionsHTML('Unknown');
 
   var SPINES = [
     {deep:'#5B4B8A', light:'#B7ACD6'},
@@ -895,18 +935,52 @@
     return dates.reduce(function(a,b){ return a>b?a:b; });
   }
 
+  function distinctGenres(){
+    var set = {};
+    books.forEach(function(b){ set[b.genre || 'Unknown'] = true; });
+    return Object.keys(set).sort();
+  }
+  function matchesGenreFilter(b){
+    return activeGenre === 'all' || (b.genre || 'Unknown') === activeGenre;
+  }
+  function renderGenreFilter(){
+    var row = document.getElementById('genre-filter-row');
+    var genres = distinctGenres();
+    if(activeGenre !== 'all' && genres.indexOf(activeGenre) === -1) activeGenre = 'all';
+    if(genres.length < 2){ row.hidden = true; row.innerHTML = ''; return; }
+    row.hidden = false;
+    var html = '<button class="genre-chip'+(activeGenre==='all'?' active':'')+'" data-genre="all">All</button>';
+    genres.forEach(function(g){
+      html += '<button class="genre-chip'+(activeGenre===g?' active':'')+'" data-genre="'+escapeHTML(g)+'">'+escapeHTML(g)+'</button>';
+    });
+    row.innerHTML = html;
+    row.querySelectorAll('.genre-chip').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        activeGenre = btn.getAttribute('data-genre');
+        renderAll();
+      });
+    });
+  }
+
   function renderShelf(){
     var shelf = document.getElementById('shelf');
-    var reading = books.filter(function(b){ return b.status==='reading'; })
+    var allReading = books.filter(function(b){ return b.status==='reading'; });
+    var reading = allReading.filter(matchesGenreFilter)
       .sort(function(a,b){ return lastActivityDate(b).localeCompare(lastActivityDate(a)); });
     shelf.innerHTML = '';
     if(reading.length===0){
       var empty = document.createElement('div');
       empty.className = 'section-empty';
       empty.style.width = '100%';
-      empty.innerHTML = "Nothing on your shelf yet.<br><button class='btn btn-primary' id='empty-add-btn' style='margin-top:10px;'>Add a book</button>";
-      shelf.appendChild(empty);
-      document.getElementById('empty-add-btn').addEventListener('click', openAddModal);
+      if(allReading.length > 0){
+        empty.innerHTML = "No books match this filter.<br><button class='btn btn-primary' id='clear-genre-btn' style='margin-top:10px;'>Show all genres</button>";
+        shelf.appendChild(empty);
+        document.getElementById('clear-genre-btn').addEventListener('click', function(){ activeGenre='all'; renderAll(); });
+      } else {
+        empty.innerHTML = "Nothing on your shelf yet.<br><button class='btn btn-primary' id='empty-add-btn' style='margin-top:10px;'>Add a book</button>";
+        shelf.appendChild(empty);
+        document.getElementById('empty-add-btn').addEventListener('click', openAddModal);
+      }
     } else {
       reading.forEach(function(b){
         var pct = Math.max(0, Math.min(100, Math.round((b.currentPage/b.totalPages)*100)));
@@ -935,53 +1009,98 @@
 
   function escapeHTML(str){ var d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
 
-  function selectBook(id){ selectedId = (selectedId===id) ? null : id; renderShelf(); renderDetail(); }
+  function selectBook(id){
+    selectedId = (selectedId===id) ? null : id;
+    renderAll();
+    if(selectedId){
+      var panel = document.getElementById('detail-panel');
+      if(panel && panel.scrollIntoView) panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+  }
 
   function renderDetail(){
     var panel = document.getElementById('detail-panel');
     var book = books.find(function(b){ return b.id===selectedId; });
     if(!book){ panel.hidden=true; panel.innerHTML=''; return; }
     panel.hidden = false;
-    var pct = Math.max(0, Math.min(100, Math.round((book.currentPage/book.totalPages)*100)));
-    var p = pace(book);
-    var remaining = Math.max(0, book.totalPages - book.currentPage);
-    var etaText = 'Log a few pages to see your pace';
-    if(p){
-      var days = Math.ceil(remaining/p);
-      etaText = days<=0 ? 'Almost there' : ('~'+days+' day'+(days===1?'':'s')+' left at this pace');
+
+    var body;
+    if(book.status === 'reading'){
+      var pct = Math.max(0, Math.min(100, Math.round((book.currentPage/book.totalPages)*100)));
+      var p = pace(book);
+      var remaining = Math.max(0, book.totalPages - book.currentPage);
+      var etaText = 'Log a few pages to see your pace';
+      if(p){
+        var days = Math.ceil(remaining/p);
+        etaText = days<=0 ? 'Almost there' : ('~'+days+' day'+(days===1?'':'s')+' left at this pace');
+      }
+      body =
+        '<div class="progress-track"><div class="progress-fill-h" style="width:'+pct+'%;"></div></div>'+
+        '<div class="progress-label"><span>Page '+book.currentPage+' of '+book.totalPages+'</span><span>'+pct+'%</span></div>'+
+        '<div class="detail-meta">'+
+          '<div><div class="num mono">'+(p?Math.round(p):'—')+'</div><div class="lbl">Pages / day</div></div>'+
+          '<div><div class="num" style="font-size:13.5px; padding-top:4px;">'+etaText+'</div></div>'+
+        '</div>'+
+        '<div class="log-row">'+
+          '<button class="chip" data-add="1">+1 page</button>'+
+          '<button class="chip" data-add="25">+25 pages</button>'+
+          '<input type="number" class="page-input" id="set-page-input" value="'+book.currentPage+'" min="0" max="'+book.totalPages+'" aria-label="Current page">'+
+          '<button class="btn" id="set-page-btn">Set page</button>'+
+        '</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="mark-finished-btn">Mark as finished</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
+    } else if(book.status === 'finished'){
+      body =
+        '<div class="detail-info">Finished '+formatDate(book.finishedDate)+' &middot; '+book.totalPages+' pages</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="unfinish-btn">Move back to reading</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
+    } else {
+      body =
+        '<div class="detail-info">'+book.totalPages+' pages &middot; not started yet</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="start-reading-btn">Start reading</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
     }
+
     panel.innerHTML =
       '<div class="detail-top">'+
-        '<div><h3>'+escapeHTML(book.title)+'</h3><div class="detail-author">'+escapeHTML(book.author||'')+'</div></div>'+
+        '<div><h3>'+escapeHTML(book.title)+'</h3><div class="detail-author">'+escapeHTML(book.author||'')+'</div>'+
+        '<select class="detail-genre" id="detail-genre-select" aria-label="Genre">'+genreOptionsHTML(book.genre||'Unknown')+'</select></div>'+
         '<button class="icon-btn" id="close-detail" aria-label="Close">&times;</button>'+
       '</div>'+
-      '<div class="progress-track"><div class="progress-fill-h" style="width:'+pct+'%;"></div></div>'+
-      '<div class="progress-label"><span>Page '+book.currentPage+' of '+book.totalPages+'</span><span>'+pct+'%</span></div>'+
-      '<div class="detail-meta">'+
-        '<div><div class="num mono">'+(p?Math.round(p):'—')+'</div><div class="lbl">Pages / day</div></div>'+
-        '<div><div class="num" style="font-size:13.5px; padding-top:4px;">'+etaText+'</div></div>'+
-      '</div>'+
-      '<div class="log-row">'+
-        '<button class="chip" data-add="1">+1 page</button>'+
-        '<button class="chip" data-add="25">+25 pages</button>'+
-        '<input type="number" class="page-input" id="set-page-input" value="'+book.currentPage+'" min="0" max="'+book.totalPages+'" aria-label="Current page">'+
-        '<button class="btn" id="set-page-btn">Set page</button>'+
-      '</div>'+
-      '<div class="detail-actions">'+
-        '<button class="btn" id="mark-finished-btn">Mark as finished</button>'+
-        '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
-      '</div>';
+      body;
 
-    panel.querySelector('#close-detail').addEventListener('click', function(){ selectedId=null; renderShelf(); renderDetail(); });
-    panel.querySelectorAll('[data-add]').forEach(function(chip){
-      chip.addEventListener('click', function(){ applyProgress(book, parseInt(chip.getAttribute('data-add'),10)); });
+    panel.querySelector('#detail-genre-select').addEventListener('change', function(e){
+      book.genre = e.target.value || 'Unknown';
+      saveBooks();
+      renderGenreFilter();
+      renderShelf();
+      renderWant();
+      renderFinished();
     });
-    panel.querySelector('#set-page-btn').addEventListener('click', function(){
-      var val = parseInt(panel.querySelector('#set-page-input').value, 10);
-      if(isNaN(val) || val<0) return;
-      applyProgress(book, val-book.currentPage, val);
-    });
-    panel.querySelector('#mark-finished-btn').addEventListener('click', function(){ finishBook(book); });
+    panel.querySelector('#close-detail').addEventListener('click', function(){ selectedId=null; renderAll(); });
+
+    if(book.status === 'reading'){
+      panel.querySelectorAll('[data-add]').forEach(function(chip){
+        chip.addEventListener('click', function(){ applyProgress(book, parseInt(chip.getAttribute('data-add'),10)); });
+      });
+      panel.querySelector('#set-page-btn').addEventListener('click', function(){
+        var val = parseInt(panel.querySelector('#set-page-input').value, 10);
+        if(isNaN(val) || val<0) return;
+        applyProgress(book, val-book.currentPage, val);
+      });
+      panel.querySelector('#mark-finished-btn').addEventListener('click', function(){ finishBook(book); });
+    } else if(book.status === 'finished'){
+      panel.querySelector('#unfinish-btn').addEventListener('click', function(){ moveBackToReading(book); });
+    } else {
+      panel.querySelector('#start-reading-btn').addEventListener('click', function(){ startReading(book); });
+    }
+
     panel.querySelector('#remove-book-btn').addEventListener('click', function(){
       if(confirm('Remove "'+book.title+'" from Stacks?')){
         books = books.filter(function(b){ return b.id!==book.id; });
@@ -1012,6 +1131,15 @@
     showToast('Finished — nice work.');
   }
 
+  function moveBackToReading(book){
+    book.status = 'reading';
+    book.finishedDate = null;
+    if(!book.startedDate) book.startedDate = todayISO();
+    saveBooks();
+    renderAll();
+    showToast('Moved back to your shelf');
+  }
+
   function startReading(book){
     book.status = 'reading';
     book.startedDate = todayISO();
@@ -1020,35 +1148,47 @@
     showToast('Moved to your shelf');
   }
 
+  function genreSuffix(b){
+    return (b.genre && b.genre !== 'Unknown') ? (' &middot; ' + escapeHTML(b.genre)) : '';
+  }
+
   function renderWant(){
     var section = document.getElementById('want-section');
     var list = document.getElementById('want-list');
-    var items = books.filter(function(b){ return b.status==='want'; });
+    var items = books.filter(function(b){ return b.status==='want'; }).filter(matchesGenreFilter);
     if(items.length===0){ section.hidden=true; return; }
     section.hidden = false;
     list.innerHTML = '';
     items.forEach(function(b){
       var row = document.createElement('div');
-      row.className = 'book-row';
+      row.className = 'book-row' + (b.id===selectedId ? ' selected' : '');
+      row.tabIndex = 0;
+      row.setAttribute('role','button');
+      row.setAttribute('aria-label', 'Open ' + b.title);
       row.innerHTML =
-        '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+' &middot; '+b.totalPages+' pages</div></div>'+
+        '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+genreSuffix(b)+' &middot; '+b.totalPages+' pages</div></div>'+
         '<div class="row-actions">'+
           '<button class="btn" data-start="'+b.id+'">Start reading</button>'+
           '<button class="icon-btn" data-remove="'+b.id+'" aria-label="Remove">&times;</button>'+
         '</div>';
+      row.addEventListener('click', function(){ selectBook(b.id); });
+      row.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectBook(b.id); } });
       list.appendChild(row);
     });
     list.querySelectorAll('[data-start]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-start'); });
         if(b) startReading(b);
       });
     });
     list.querySelectorAll('[data-remove]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-remove'); });
         if(b && confirm('Remove "'+b.title+'"?')){
           books = books.filter(function(x){ return x.id!==b.id; });
+          if(selectedId===b.id) selectedId=null;
           saveBooks();
           renderAll();
         }
@@ -1059,24 +1199,31 @@
   function renderFinished(){
     var section = document.getElementById('finished-section');
     var list = document.getElementById('finished-list');
-    var items = books.filter(function(b){ return b.status==='finished'; })
+    var items = books.filter(function(b){ return b.status==='finished'; }).filter(matchesGenreFilter)
       .sort(function(a,b){ return (b.finishedDate||'').localeCompare(a.finishedDate||''); });
     if(items.length===0){ section.hidden=true; return; }
     section.hidden = false;
     list.innerHTML = '';
     items.forEach(function(b){
       var row = document.createElement('div');
-      row.className = 'book-row';
+      row.className = 'book-row' + (b.id===selectedId ? ' selected' : '');
+      row.tabIndex = 0;
+      row.setAttribute('role','button');
+      row.setAttribute('aria-label', 'Open ' + b.title);
       row.innerHTML =
-        '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+' &middot; finished '+formatDate(b.finishedDate)+'</div></div>'+
+        '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+genreSuffix(b)+' &middot; finished '+formatDate(b.finishedDate)+'</div></div>'+
         '<div class="row-actions"><button class="icon-btn" data-remove-f="'+b.id+'" aria-label="Remove">&times;</button></div>';
+      row.addEventListener('click', function(){ selectBook(b.id); });
+      row.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectBook(b.id); } });
       list.appendChild(row);
     });
     list.querySelectorAll('[data-remove-f]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-remove-f'); });
         if(b && confirm('Remove "'+b.title+'" from your finished list?')){
           books = books.filter(function(x){ return x.id!==b.id; });
+          if(selectedId===b.id) selectedId=null;
           saveBooks();
           renderAll();
         }
@@ -1087,6 +1234,7 @@
   function renderAll(){
     renderStats();
     renderGoalRing();
+    renderGenreFilter();
     renderShelf();
     renderDetail();
     renderWant();
@@ -1098,6 +1246,7 @@
     document.getElementById('f-title').value = '';
     document.getElementById('f-author').value = '';
     document.getElementById('f-pages').value = '';
+    document.getElementById('f-genre').value = 'Unknown';
     document.getElementById('err-title').classList.remove('show');
     document.getElementById('err-pages').classList.remove('show');
     newBookStatus = 'reading';
@@ -1132,6 +1281,7 @@
       var title = document.getElementById('f-title').value.trim();
       var author = document.getElementById('f-author').value.trim();
       var pages = parseInt(document.getElementById('f-pages').value, 10);
+      var genre = document.getElementById('f-genre').value || 'Unknown';
       var titleErr = document.getElementById('err-title');
       var pagesErr = document.getElementById('err-pages');
       var valid = true;
@@ -1139,7 +1289,7 @@
       if(!pages || pages<1){ pagesErr.classList.add('show'); valid=false; } else pagesErr.classList.remove('show');
       if(!valid) return;
       var book = {
-        id: genId(), title: title, author: author, totalPages: pages, currentPage: 0,
+        id: genId(), title: title, author: author, genre: genre, totalPages: pages, currentPage: 0,
         status: newBookStatus, startedDate: newBookStatus==='reading' ? todayISO() : null,
         finishedDate: null, sessions: []
       };
