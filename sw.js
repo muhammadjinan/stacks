@@ -1,11 +1,12 @@
 // Bump this string every time you redeploy updated files. It clears out
 // caches from older versions so nobody is stuck on an old copy.
-var CACHE_NAME = 'stacks-cache-v2';
+var CACHE_NAME = 'stacks-cache-v3';
 
 var ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
+  './captions.json',
   './icons/icon-32.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
