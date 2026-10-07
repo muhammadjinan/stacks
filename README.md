@@ -8,6 +8,7 @@ No accounts, no server — everything lives on your device.
 ```
 index.html
 manifest.json
+captions.json
 sw.js
 icons/
   icon-32.png
@@ -41,10 +42,24 @@ README.md
 Whenever you push changed files to the repo, open `sw.js` first and bump:
 
 ```js
-var CACHE_NAME = 'stacks-cache-v2';
+var CACHE_NAME = 'stacks-cache-v3';
 ```
 
-to `v3`, `v4`, etc. The app always fetches the latest files when online, so updates show up quickly either way — bumping just clears out the old offline copies. Your users' saved books are never touched by an update.
+to `v4`, `v5`, etc. The app always fetches the latest files when online, so updates show up quickly either way — bumping just clears out the old offline copies. Your users' saved books are never touched by an update.
+
+## 5. Adding more captions
+
+The line under the "Stacks" title is picked at random, each time the app opens, from `captions.json`. To add more, open that file and add an entry in the same shape:
+
+```json
+{ "text": "Your quote here.", "author": "Who said it" }
+```
+
+Leave `"author": ""` for a line that shouldn't show an attribution (like the app's own tagline, the first entry). No code changes needed — just edit the file and redeploy (remember step 4 above).
+
+## 6. Sharing
+
+Tapping the "Stacks" title opens a Share popup. On phones, this opens the normal share sheet (Messages, WhatsApp, email, etc.) via the browser's native share feature. On a desktop browser without that feature, it copies the page's link to the clipboard instead.
 
 ## About the design
 
