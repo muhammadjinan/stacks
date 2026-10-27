@@ -7,6 +7,7 @@
 <meta name="description" content="A simple, glassy tracker for everything you're reading at once.">
 
 <link rel="manifest" href="manifest.json">
+<meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#171310">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -21,6 +22,7 @@
 
 <style>
   :root{
+    color-scheme: dark;
     --ink:#F5F0E7;
     --ink-soft:rgba(245,240,231,0.66);
     --ink-faint:rgba(245,240,231,0.42);
@@ -78,6 +80,22 @@
   /* header */
   .app-header{margin-bottom:22px;}
   .app-header h1{font-size:34px; letter-spacing:-0.01em;}
+  .title-row{ display:flex; align-items:center; gap:10px; }
+  .menu-btn{
+    background:none; border:none; cursor:pointer; padding:4px 2px 2px;
+    font-size:26px; line-height:1; color:var(--ink);
+  }
+  .menu-btn:hover{ opacity:0.8; }
+  .menu-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:4px; }
+  .menu-list{ display:flex; flex-direction:column; gap:8px; margin:16px 0 20px; }
+  .menu-item{
+    width:100%; text-align:left; padding:12px 14px; border-radius:10px;
+    border:1px solid var(--glass-border); background:rgba(255,255,255,0.06);
+    color:var(--ink); font-size:14.5px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .menu-item:hover{ border-color:var(--accent); }
+  .menu-item:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .menu-item.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .app-header p{margin:6px 0 0; color:var(--ink-soft); font-size:14.5px;}
   .header-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
   .profile-btn{
@@ -138,12 +156,23 @@
   .genre-chip:hover{ border-color:var(--accent); }
   .genre-chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .genre-chip:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .genre-trigger-chevron{ color:var(--ink-soft); font-size:11px; margin-left:8px; flex-shrink:0; }
   .detail-genre{
-    display:block; margin-top:8px; height:28px; font-size:12.5px; padding:0 10px;
+    display:inline-flex; align-items:center; margin-top:8px; height:28px; font-size:12.5px; padding:0 10px;
     border-radius:14px; border:1px solid var(--glass-border);
     background:rgba(255,255,255,0.08); color:var(--ink-soft); cursor:pointer;
+    font-family:'Inter',sans-serif;
   }
+  .detail-genre:hover{ border-color:var(--accent); }
   .detail-genre:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .genre-trigger{
+    width:100%; height:38px; border-radius:8px; border:1px solid var(--glass-border);
+    padding:0 12px; font-size:14.5px; font-family:'Inter',sans-serif;
+    background:rgba(255,255,255,0.06); color:var(--ink);
+    display:flex; align-items:center; justify-content:space-between; cursor:pointer; text-align:left;
+  }
+  .genre-trigger:hover{ border-color:var(--accent); }
+  .genre-trigger:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
 
   /* sections */
   section{margin-bottom:34px;}
@@ -231,9 +260,13 @@
   .detail-actions{ display:flex; gap:10px; margin-top:18px; border-top:1px solid var(--glass-border); padding-top:14px; }
 
   /* lists */
-  .book-row{ display:flex; align-items:center; justify-content:space-between; border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+  .book-row{ display:flex; align-items:center; justify-content:space-between; border-radius:10px; padding:12px 14px; margin-bottom:8px; cursor:pointer; }
+  .book-row:hover{ border-color:var(--accent); }
+  .book-row.selected{ border-color:var(--accent); }
+  .book-row:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   .book-row .title{ font-size:14.5px; font-weight:500; }
   .book-row .sub{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .detail-info{ color:var(--ink-soft); font-size:13.5px; margin-top:14px; }
   .row-actions{ display:flex; gap:6px; align-items:center; }
 
   /* fab */
@@ -318,8 +351,11 @@
   <header class="app-header">
     <div class="header-top">
       <div>
-        <h1>Stacks</h1>
-        <p>Every book you're reading, on one shelf.</p>
+        <div class="title-row">
+          <button class="menu-btn" id="menu-btn" aria-haspopup="dialog" aria-label="Menu">&#9776;</button>
+          <h1>Stacks</h1>
+        </div>
+        <p id="app-tagline">Every book you're reading, on one shelf.</p>
       </div>
       <button class="profile-btn" id="profile-btn" aria-label="Personalize">
         <span class="profile-avatar" id="profile-avatar">+</span>
@@ -333,6 +369,29 @@
       <input type="file" id="import-file" accept="application/json" hidden>
     </div>
   </header>
+
+  <div class="modal-overlay" id="genre-picker-modal" hidden style="z-index:70;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="genre-picker-title">
+      <h2 id="genre-picker-title">Genre</h2>
+      <div class="menu-list" id="genre-picker-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-quiet" id="genre-picker-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="menu-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="menu-modal-title">
+      <h2 id="menu-modal-title">Stacks</h2>
+      <div class="menu-list">
+        <button type="button" class="menu-item" id="menu-share-btn">Share Stacks</button>
+        <button type="button" class="menu-item" id="menu-lending-btn">Lending &amp; Borrowing</button>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-quiet" id="menu-cancel">Close</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="profile-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
@@ -395,10 +454,11 @@
 
   <div class="genre-filter-row" id="genre-filter-row" hidden></div>
 
+  <div class="detail-panel" id="detail-panel" hidden></div>
+
   <section id="shelf-section">
     <h2>Currently reading</h2>
     <div class="shelf-scroll" id="shelf"></div>
-    <div class="detail-panel" id="detail-panel" hidden></div>
   </section>
 
   <section id="want-section" hidden>
@@ -413,7 +473,68 @@
 
 </div>
 
+<div class="wrap" id="lending-view" hidden>
+  <header class="app-header">
+    <div class="header-top">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="icon-btn" id="lending-back-btn" aria-label="Back to your shelf" style="font-size:22px; font-weight:700;">&larr;</button>
+        <h2 style="margin:0;">Lending &amp; Borrowing</h2>
+      </div>
+    </div>
+  </header>
+
+  <div class="genre-filter-row" id="loan-filter-row"></div>
+
+  <section id="active-loans-section">
+    <h2>Out right now</h2>
+    <div id="active-loans-list"></div>
+  </section>
+
+  <section id="returned-loans-section" hidden>
+    <h2>Returned</h2>
+    <div id="returned-loans-list"></div>
+  </section>
+</div>
+
 <button class="fab" id="fab-add" aria-label="Add a book">+</button>
+<button class="fab" id="fab-add-loan" aria-label="Add a loan" hidden>+</button>
+
+<div class="modal-overlay" id="add-loan-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="loan-modal-title">
+    <h2 id="loan-modal-title">Add a loan</h2>
+    <form id="add-loan-form" novalidate>
+      <div class="field">
+        <label>Type</label>
+        <div class="segmented" id="loan-direction-toggle">
+          <button type="button" data-direction="lent" class="active">I lent this out</button>
+          <button type="button" data-direction="borrowed">I borrowed this</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="l-title">Book title</label>
+        <input id="l-title" type="text" placeholder="The Kite Runner" autocomplete="off">
+        <div class="error-text" id="err-l-title">Enter a title.</div>
+      </div>
+      <div class="field">
+        <label for="l-author">Author (optional)</label>
+        <input id="l-author" type="text" placeholder="Khaled Hosseini" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="l-person" id="l-person-label">Lent to</label>
+        <input id="l-person" type="text" placeholder="Name" autocomplete="off">
+        <div class="error-text" id="err-l-person">Enter a name.</div>
+      </div>
+      <div class="field">
+        <label for="l-date">Date (optional)</label>
+        <input id="l-date" type="date">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-quiet" id="cancel-add-loan">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="modal-overlay" id="add-modal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -434,8 +555,11 @@
         <div class="error-text" id="err-pages">Enter the number of pages.</div>
       </div>
       <div class="field">
-        <label for="f-genre">Genre (optional)</label>
-        <select id="f-genre"></select>
+        <label id="f-genre-label">Genre (optional)</label>
+        <button type="button" class="genre-trigger" id="f-genre-trigger" aria-haspopup="dialog" aria-labelledby="f-genre-label f-genre-value">
+          <span id="f-genre-value">Unknown</span>
+          <span class="genre-trigger-chevron">&#9662;</span>
+        </button>
       </div>
       <div class="field">
         <label>Status</label>
@@ -535,6 +659,54 @@
     }
   }
   function saveBooksToStorage(list){ return safeSet(BOOKS_KEY, JSON.stringify(list)); }
+
+  // ---------- loans: books lent out or borrowed, kept separate from the reading list ----------
+  var LOANS_KEY = 'stacks_loans_v1';
+  var VALID_DIRECTION = { lent:1, borrowed:1 };
+
+  function normalizeLoan(l){
+    if(!l || typeof l !== 'object') return null;
+    var title = (typeof l.title === 'string') ? l.title.trim() : '';
+    var person = (typeof l.person === 'string') ? l.person.trim() : '';
+    if(!title || !person) return null;
+    return {
+      id: (typeof l.id === 'string' && l.id) ? l.id : makeId(),
+      title: title,
+      author: (typeof l.author === 'string') ? l.author : '',
+      person: person,
+      direction: VALID_DIRECTION[l.direction] ? l.direction : 'lent',
+      date: (typeof l.date === 'string' && l.date) ? l.date : null,
+      returned: !!l.returned,
+      returnedDate: (typeof l.returnedDate === 'string') ? l.returnedDate : null
+    };
+  }
+  function cleanLoans(list){
+    var seen = {}, out = [];
+    list.forEach(function(item){
+      var l = normalizeLoan(item);
+      if(!l) return;
+      while(seen[l.id]) l.id = makeId();
+      seen[l.id] = true;
+      out.push(l);
+    });
+    return out;
+  }
+  function loadLoansFromStorage(){
+    var raw = safeGet(LOANS_KEY);
+    if(raw === null || raw === '') return [];
+    try{
+      var parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) throw new Error('not a list');
+      var cleaned = cleanLoans(parsed);
+      if(parsed.length && !cleaned.length) throw new Error('nothing usable');
+      return cleaned;
+    }catch(e){
+      safeSet(LOANS_KEY + '_unreadable', raw);
+      showToast("Your saved loans couldn't be read. A copy was kept safe.");
+      return [];
+    }
+  }
+  function saveLoansToStorage(list){ return safeSet(LOANS_KEY, JSON.stringify(list)); }
 
   // Ask the browser not to clear this site's data when the device is short on space.
   try{
@@ -742,6 +914,69 @@
   }
   function closeProfileModal(){ document.getElementById('profile-modal').hidden = true; }
 
+  // ---------- menu (replaces the old tap-the-title share popup) ----------
+  function openMenuModal(){ document.getElementById('menu-modal').hidden = false; }
+  function closeMenuModal(){ document.getElementById('menu-modal').hidden = true; }
+  document.getElementById('menu-btn').addEventListener('click', openMenuModal);
+  document.getElementById('menu-cancel').addEventListener('click', closeMenuModal);
+  document.getElementById('menu-modal').addEventListener('click', function(e){
+    if(e.target.id === 'menu-modal') closeMenuModal();
+  });
+
+  async function performShare(){
+    var shareData = {
+      title: 'Stacks — Reading Tracker',
+      text: "Track every book you're reading, on one shelf.",
+      url: window.location.href
+    };
+    if(navigator.share){
+      try{
+        await navigator.share(shareData);
+        return;
+      }catch(err){
+        if(err && err.name === 'AbortError') return; // the person backed out of the share sheet
+      }
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      try{
+        await navigator.clipboard.writeText(shareData.url);
+        showToast('Link copied to clipboard');
+        return;
+      }catch(err){}
+    }
+    showToast("Couldn't share automatically — copy this page's link instead.");
+  }
+  document.getElementById('menu-share-btn').addEventListener('click', function(){
+    closeMenuModal();
+    performShare();
+  });
+  document.getElementById('menu-lending-btn').addEventListener('click', function(){
+    closeMenuModal();
+    if(window.LendingApp && window.LendingApp.show) window.LendingApp.show();
+  });
+
+  // ---------- rotating caption, loaded from captions.json so new ones can be added without touching this file ----------
+  function formatCaption(entry){
+    var fallback = "Every book you're reading, on one shelf.";
+    if(!entry || typeof entry.text !== 'string' || !entry.text.trim()) return fallback;
+    return entry.author ? (entry.text + ' — ' + entry.author) : entry.text;
+  }
+  async function loadCaption(){
+    try{
+      var res = await fetch('captions.json', { cache: 'no-cache' });
+      if(!res.ok) return; // keep the static default already in the HTML
+      var list = await res.json();
+      if(!Array.isArray(list) || list.length === 0) return;
+      var pick = list[Math.floor(Math.random() * list.length)];
+      var el = document.getElementById('app-tagline');
+      if(el) el.textContent = formatCaption(pick);
+    }catch(e){
+      // offline, or opened directly from disk (fetch of local files is blocked by browsers) —
+      // the default tagline already shown in the HTML stands in, so this fails silently.
+    }
+  }
+  loadCaption();
+
   document.getElementById('profile-btn').addEventListener('click', openProfileModal);
   document.getElementById('profile-cancel').addEventListener('click', closeProfileModal);
   document.getElementById('profile-modal').addEventListener('click', function(e){
@@ -816,18 +1051,49 @@
   var books = [];
   var selectedId = null;
   var newBookStatus = 'reading';
+  var newBookGenre = 'Unknown';
   var activeGenre = 'all';
 
   var GENRES = ['Unknown','Biography & Memoir','Business','Fantasy & Sci-Fi','Fiction','History',
     'Mystery & Thriller','Non-Fiction','Poetry','Religion & Spirituality','Romance','Science',
     'Self-Help','Young Adult'];
 
-  function genreOptionsHTML(selected){
-    return GENRES.map(function(g){
-      return '<option value="'+g+'"'+(g===selected?' selected':'')+'>'+g+'</option>';
+  // ---------- custom genre picker: our own dropdown, so it never depends on how the
+  // browser/OS chooses to render a native <select> popup ----------
+  var genrePickerCallback = null;
+  function renderGenrePickerList(selected){
+    var list = document.getElementById('genre-picker-list');
+    list.innerHTML = GENRES.map(function(g){
+      return '<button type="button" class="menu-item'+(g===selected?' active':'')+'" data-genre-pick="'+g+'">'+g+'</button>';
     }).join('');
+    list.querySelectorAll('[data-genre-pick]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var picked = btn.getAttribute('data-genre-pick');
+        var cb = genrePickerCallback;
+        closeGenrePicker();
+        if(cb) cb(picked);
+      });
+    });
   }
-  document.getElementById('f-genre').innerHTML = genreOptionsHTML('Unknown');
+  function openGenrePicker(currentValue, onSelect){
+    genrePickerCallback = onSelect;
+    renderGenrePickerList(currentValue || 'Unknown');
+    document.getElementById('genre-picker-modal').hidden = false;
+  }
+  function closeGenrePicker(){
+    document.getElementById('genre-picker-modal').hidden = true;
+    genrePickerCallback = null;
+  }
+  document.getElementById('genre-picker-cancel').addEventListener('click', closeGenrePicker);
+  document.getElementById('genre-picker-modal').addEventListener('click', function(e){
+    if(e.target.id === 'genre-picker-modal') closeGenrePicker();
+  });
+  document.getElementById('f-genre-trigger').addEventListener('click', function(){
+    openGenrePicker(newBookGenre, function(picked){
+      newBookGenre = picked;
+      document.getElementById('f-genre-value').textContent = picked;
+    });
+  });
 
   var SPINES = [
     {deep:'#5B4B8A', light:'#B7ACD6'},
@@ -1004,62 +1270,99 @@
 
   function escapeHTML(str){ var d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
 
-  function selectBook(id){ selectedId = (selectedId===id) ? null : id; renderShelf(); renderDetail(); }
+  function selectBook(id){
+    selectedId = (selectedId===id) ? null : id;
+    renderAll();
+    if(selectedId){
+      var panel = document.getElementById('detail-panel');
+      if(panel && panel.scrollIntoView) panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+  }
 
   function renderDetail(){
     var panel = document.getElementById('detail-panel');
     var book = books.find(function(b){ return b.id===selectedId; });
     if(!book){ panel.hidden=true; panel.innerHTML=''; return; }
     panel.hidden = false;
-    var pct = Math.max(0, Math.min(100, Math.round((book.currentPage/book.totalPages)*100)));
-    var p = pace(book);
-    var remaining = Math.max(0, book.totalPages - book.currentPage);
-    var etaText = 'Log a few pages to see your pace';
-    if(p){
-      var days = Math.ceil(remaining/p);
-      etaText = days<=0 ? 'Almost there' : ('~'+days+' day'+(days===1?'':'s')+' left at this pace');
+
+    var body;
+    if(book.status === 'reading'){
+      var pct = Math.max(0, Math.min(100, Math.round((book.currentPage/book.totalPages)*100)));
+      var p = pace(book);
+      var remaining = Math.max(0, book.totalPages - book.currentPage);
+      var etaText = 'Log a few pages to see your pace';
+      if(p){
+        var days = Math.ceil(remaining/p);
+        etaText = days<=0 ? 'Almost there' : ('~'+days+' day'+(days===1?'':'s')+' left at this pace');
+      }
+      body =
+        '<div class="progress-track"><div class="progress-fill-h" style="width:'+pct+'%;"></div></div>'+
+        '<div class="progress-label"><span>Page '+book.currentPage+' of '+book.totalPages+'</span><span>'+pct+'%</span></div>'+
+        '<div class="detail-meta">'+
+          '<div><div class="num mono">'+(p?Math.round(p):'—')+'</div><div class="lbl">Pages / day</div></div>'+
+          '<div><div class="num" style="font-size:13.5px; padding-top:4px;">'+etaText+'</div></div>'+
+        '</div>'+
+        '<div class="log-row">'+
+          '<button class="chip" data-add="1">+1 page</button>'+
+          '<button class="chip" data-add="25">+25 pages</button>'+
+          '<input type="number" class="page-input" id="set-page-input" value="'+book.currentPage+'" min="0" max="'+book.totalPages+'" aria-label="Current page">'+
+          '<button class="btn" id="set-page-btn">Set page</button>'+
+        '</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="mark-finished-btn">Mark as finished</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
+    } else if(book.status === 'finished'){
+      body =
+        '<div class="detail-info">Finished '+formatDate(book.finishedDate)+' &middot; '+book.totalPages+' pages</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="unfinish-btn">Move back to reading</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
+    } else {
+      body =
+        '<div class="detail-info">'+book.totalPages+' pages &middot; not started yet</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="start-reading-btn">Start reading</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
     }
+
     panel.innerHTML =
       '<div class="detail-top">'+
         '<div><h3>'+escapeHTML(book.title)+'</h3><div class="detail-author">'+escapeHTML(book.author||'')+'</div>'+
-        '<select class="detail-genre" id="detail-genre-select" aria-label="Genre">'+genreOptionsHTML(book.genre||'Unknown')+'</select></div>'+
+        '<button type="button" class="detail-genre" id="detail-genre-trigger" aria-haspopup="dialog" aria-label="Genre">'+
+          '<span>'+escapeHTML(book.genre||'Unknown')+'</span><span class="genre-trigger-chevron">&#9662;</span>'+
+        '</button></div>'+
         '<button class="icon-btn" id="close-detail" aria-label="Close">&times;</button>'+
       '</div>'+
-      '<div class="progress-track"><div class="progress-fill-h" style="width:'+pct+'%;"></div></div>'+
-      '<div class="progress-label"><span>Page '+book.currentPage+' of '+book.totalPages+'</span><span>'+pct+'%</span></div>'+
-      '<div class="detail-meta">'+
-        '<div><div class="num mono">'+(p?Math.round(p):'—')+'</div><div class="lbl">Pages / day</div></div>'+
-        '<div><div class="num" style="font-size:13.5px; padding-top:4px;">'+etaText+'</div></div>'+
-      '</div>'+
-      '<div class="log-row">'+
-        '<button class="chip" data-add="1">+1 page</button>'+
-        '<button class="chip" data-add="25">+25 pages</button>'+
-        '<input type="number" class="page-input" id="set-page-input" value="'+book.currentPage+'" min="0" max="'+book.totalPages+'" aria-label="Current page">'+
-        '<button class="btn" id="set-page-btn">Set page</button>'+
-      '</div>'+
-      '<div class="detail-actions">'+
-        '<button class="btn" id="mark-finished-btn">Mark as finished</button>'+
-        '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
-      '</div>';
+      body;
 
-    panel.querySelector('#detail-genre-select').addEventListener('change', function(e){
-      book.genre = e.target.value || 'Unknown';
-      saveBooks();
-      renderGenreFilter();
-      renderShelf();
-      renderWant();
-      renderFinished();
+    panel.querySelector('#detail-genre-trigger').addEventListener('click', function(){
+      openGenrePicker(book.genre||'Unknown', function(picked){
+        book.genre = picked;
+        saveBooks();
+        renderAll();
+      });
     });
-    panel.querySelector('#close-detail').addEventListener('click', function(){ selectedId=null; renderShelf(); renderDetail(); });
-    panel.querySelectorAll('[data-add]').forEach(function(chip){
-      chip.addEventListener('click', function(){ applyProgress(book, parseInt(chip.getAttribute('data-add'),10)); });
-    });
-    panel.querySelector('#set-page-btn').addEventListener('click', function(){
-      var val = parseInt(panel.querySelector('#set-page-input').value, 10);
-      if(isNaN(val) || val<0) return;
-      applyProgress(book, val-book.currentPage, val);
-    });
-    panel.querySelector('#mark-finished-btn').addEventListener('click', function(){ finishBook(book); });
+    panel.querySelector('#close-detail').addEventListener('click', function(){ selectedId=null; renderAll(); });
+
+    if(book.status === 'reading'){
+      panel.querySelectorAll('[data-add]').forEach(function(chip){
+        chip.addEventListener('click', function(){ applyProgress(book, parseInt(chip.getAttribute('data-add'),10)); });
+      });
+      panel.querySelector('#set-page-btn').addEventListener('click', function(){
+        var val = parseInt(panel.querySelector('#set-page-input').value, 10);
+        if(isNaN(val) || val<0) return;
+        applyProgress(book, val-book.currentPage, val);
+      });
+      panel.querySelector('#mark-finished-btn').addEventListener('click', function(){ finishBook(book); });
+    } else if(book.status === 'finished'){
+      panel.querySelector('#unfinish-btn').addEventListener('click', function(){ moveBackToReading(book); });
+    } else {
+      panel.querySelector('#start-reading-btn').addEventListener('click', function(){ startReading(book); });
+    }
+
     panel.querySelector('#remove-book-btn').addEventListener('click', function(){
       if(confirm('Remove "'+book.title+'" from Stacks?')){
         books = books.filter(function(b){ return b.id!==book.id; });
@@ -1072,7 +1375,22 @@
   }
 
   function applyProgress(book, delta, absoluteValue){
-    if(delta>0){ book.sessions = book.sessions || []; book.sessions.push({date: todayISO(), pages: delta}); }
+    if(delta !== 0){
+      book.sessions = book.sessions || [];
+      var today = todayISO();
+      var todaysSession = book.sessions.find(function(s){ return s.date===today; });
+      if(delta > 0){
+        if(todaysSession) todaysSession.pages += delta;
+        else book.sessions.push({date: today, pages: delta});
+      } else if(todaysSession){
+        // Correcting downward: reduce what was actually logged today, rather than
+        // leaving the earlier (now-overstated) entry sitting in the pace calculation.
+        todaysSession.pages += delta; // delta is negative here
+        if(todaysSession.pages <= 0){
+          book.sessions = book.sessions.filter(function(s){ return s !== todaysSession; });
+        }
+      }
+    }
     book.currentPage = (typeof absoluteValue==='number') ? absoluteValue : Math.min(book.totalPages, book.currentPage+delta);
     if(book.currentPage >= book.totalPages){ finishBook(book); return; }
     saveBooks();
@@ -1088,6 +1406,15 @@
     saveBooks();
     renderAll();
     showToast('Finished — nice work.');
+  }
+
+  function moveBackToReading(book){
+    book.status = 'reading';
+    book.finishedDate = null;
+    if(!book.startedDate) book.startedDate = todayISO();
+    saveBooks();
+    renderAll();
+    showToast('Moved back to your shelf');
   }
 
   function startReading(book){
@@ -1111,26 +1438,34 @@
     list.innerHTML = '';
     items.forEach(function(b){
       var row = document.createElement('div');
-      row.className = 'book-row';
+      row.className = 'book-row' + (b.id===selectedId ? ' selected' : '');
+      row.tabIndex = 0;
+      row.setAttribute('role','button');
+      row.setAttribute('aria-label', 'Open ' + b.title);
       row.innerHTML =
         '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+genreSuffix(b)+' &middot; '+b.totalPages+' pages</div></div>'+
         '<div class="row-actions">'+
           '<button class="btn" data-start="'+b.id+'">Start reading</button>'+
           '<button class="icon-btn" data-remove="'+b.id+'" aria-label="Remove">&times;</button>'+
         '</div>';
+      row.addEventListener('click', function(){ selectBook(b.id); });
+      row.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectBook(b.id); } });
       list.appendChild(row);
     });
     list.querySelectorAll('[data-start]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-start'); });
         if(b) startReading(b);
       });
     });
     list.querySelectorAll('[data-remove]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-remove'); });
         if(b && confirm('Remove "'+b.title+'"?')){
           books = books.filter(function(x){ return x.id!==b.id; });
+          if(selectedId===b.id) selectedId=null;
           saveBooks();
           renderAll();
         }
@@ -1148,17 +1483,24 @@
     list.innerHTML = '';
     items.forEach(function(b){
       var row = document.createElement('div');
-      row.className = 'book-row';
+      row.className = 'book-row' + (b.id===selectedId ? ' selected' : '');
+      row.tabIndex = 0;
+      row.setAttribute('role','button');
+      row.setAttribute('aria-label', 'Open ' + b.title);
       row.innerHTML =
         '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+genreSuffix(b)+' &middot; finished '+formatDate(b.finishedDate)+'</div></div>'+
         '<div class="row-actions"><button class="icon-btn" data-remove-f="'+b.id+'" aria-label="Remove">&times;</button></div>';
+      row.addEventListener('click', function(){ selectBook(b.id); });
+      row.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectBook(b.id); } });
       list.appendChild(row);
     });
     list.querySelectorAll('[data-remove-f]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-remove-f'); });
         if(b && confirm('Remove "'+b.title+'" from your finished list?')){
           books = books.filter(function(x){ return x.id!==b.id; });
+          if(selectedId===b.id) selectedId=null;
           saveBooks();
           renderAll();
         }
@@ -1181,7 +1523,8 @@
     document.getElementById('f-title').value = '';
     document.getElementById('f-author').value = '';
     document.getElementById('f-pages').value = '';
-    document.getElementById('f-genre').value = 'Unknown';
+    newBookGenre = 'Unknown';
+    document.getElementById('f-genre-value').textContent = 'Unknown';
     document.getElementById('err-title').classList.remove('show');
     document.getElementById('err-pages').classList.remove('show');
     newBookStatus = 'reading';
@@ -1199,8 +1542,10 @@
   });
   document.addEventListener('keydown', function(e){
     if(e.key==='Escape'){
-      if(!document.getElementById('add-modal').hidden) closeAddModal();
+      if(!document.getElementById('genre-picker-modal').hidden) closeGenrePicker();
+      else if(!document.getElementById('add-modal').hidden) closeAddModal();
       if(!document.getElementById('profile-modal').hidden) closeProfileModal();
+      if(!document.getElementById('menu-modal').hidden) closeMenuModal();
     }
   });
   document.querySelectorAll('#status-toggle button').forEach(function(btn){
@@ -1216,7 +1561,7 @@
       var title = document.getElementById('f-title').value.trim();
       var author = document.getElementById('f-author').value.trim();
       var pages = parseInt(document.getElementById('f-pages').value, 10);
-      var genre = document.getElementById('f-genre').value || 'Unknown';
+      var genre = newBookGenre || 'Unknown';
       var titleErr = document.getElementById('err-title');
       var pagesErr = document.getElementById('err-pages');
       var valid = true;
@@ -1287,6 +1632,226 @@
   books = loadBooksFromStorage();
   window.StacksApp = { renderAll: renderAll };
   renderAll();
+})();
+</script>
+
+<script>
+(function(){
+  var loans = [];
+  var loanFilter = 'all';
+  var newLoanDirection = 'lent';
+
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function formatDate(iso){
+    if(!iso) return '';
+    var d = new Date(iso+'T00:00:00');
+    return d.toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+  }
+  function escapeHTML(str){ var d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+
+  function saveLoans(){
+    if(!saveLoansToStorage(loans)) showToast("Couldn't save — your browser may be blocking storage.");
+  }
+  function matchesLoanFilter(l){ return loanFilter==='all' || l.direction===loanFilter; }
+
+  function renderLoanFilter(){
+    var row = document.getElementById('loan-filter-row');
+    var html = '';
+    [['all','All'], ['lent','Lent out'], ['borrowed','Borrowed']].forEach(function(pair){
+      html += '<button class="genre-chip'+(loanFilter===pair[0]?' active':'')+'" data-loan-filter="'+pair[0]+'">'+pair[1]+'</button>';
+    });
+    row.innerHTML = html;
+    row.querySelectorAll('.genre-chip').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        loanFilter = btn.getAttribute('data-loan-filter');
+        renderLoans();
+      });
+    });
+  }
+
+  function loanSubLine(l){
+    var dirText = l.direction==='lent' ? ('Lent to '+escapeHTML(l.person)) : ('Borrowed from '+escapeHTML(l.person));
+    var parts = [dirText];
+    if(l.author) parts.push(escapeHTML(l.author));
+    if(l.date) parts.push(formatDate(l.date));
+    return parts.join(' &middot; ');
+  }
+
+  function renderActiveLoans(){
+    var list = document.getElementById('active-loans-list');
+    var all = loans.filter(function(l){ return !l.returned; });
+    var items = all.filter(matchesLoanFilter)
+      .sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+    list.innerHTML = '';
+    if(items.length===0){
+      var empty = document.createElement('div');
+      empty.className = 'section-empty';
+      if(all.length>0){
+        empty.innerHTML = "No loans match this filter.<br><button class='btn btn-primary' id='clear-loan-filter-btn' style='margin-top:10px;'>Show all</button>";
+        list.appendChild(empty);
+        document.getElementById('clear-loan-filter-btn').addEventListener('click', function(){ loanFilter='all'; renderLoans(); });
+      } else {
+        empty.innerHTML = "Nothing here yet.<br><button class='btn btn-primary' id='empty-add-loan-btn' style='margin-top:10px;'>Add a book</button>";
+        list.appendChild(empty);
+        document.getElementById('empty-add-loan-btn').addEventListener('click', openAddLoanModal);
+      }
+      return;
+    }
+    items.forEach(function(l){
+      var row = document.createElement('div');
+      row.className = 'book-row';
+      row.innerHTML =
+        '<div><div class="title">'+escapeHTML(l.title)+'</div><div class="sub">'+loanSubLine(l)+'</div></div>'+
+        '<div class="row-actions">'+
+          '<button class="btn" data-return="'+l.id+'">Mark returned</button>'+
+          '<button class="icon-btn" data-remove-loan="'+l.id+'" aria-label="Remove">&times;</button>'+
+        '</div>';
+      list.appendChild(row);
+    });
+    list.querySelectorAll('[data-return]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var l = loans.find(function(x){ return x.id===btn.getAttribute('data-return'); });
+        if(l){ l.returned=true; l.returnedDate=todayISO(); saveLoans(); renderLoans(); showToast('Marked returned'); }
+      });
+    });
+    list.querySelectorAll('[data-remove-loan]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var l = loans.find(function(x){ return x.id===btn.getAttribute('data-remove-loan'); });
+        if(l && confirm('Remove "'+l.title+'" from your loans?')){
+          loans = loans.filter(function(x){ return x.id!==l.id; });
+          saveLoans(); renderLoans();
+        }
+      });
+    });
+  }
+
+  function renderReturnedLoans(){
+    var section = document.getElementById('returned-loans-section');
+    var list = document.getElementById('returned-loans-list');
+    var items = loans.filter(function(l){ return l.returned; }).filter(matchesLoanFilter)
+      .sort(function(a,b){ return (b.returnedDate||'').localeCompare(a.returnedDate||''); });
+    if(items.length===0){ section.hidden=true; return; }
+    section.hidden = false;
+    list.innerHTML = '';
+    items.forEach(function(l){
+      var row = document.createElement('div');
+      row.className = 'book-row';
+      row.innerHTML =
+        '<div><div class="title">'+escapeHTML(l.title)+'</div><div class="sub">'+loanSubLine(l)+' &middot; returned '+formatDate(l.returnedDate)+'</div></div>'+
+        '<div class="row-actions">'+
+          '<button class="btn btn-quiet" data-unreturn="'+l.id+'">Undo</button>'+
+          '<button class="icon-btn" data-remove-loan-r="'+l.id+'" aria-label="Remove">&times;</button>'+
+        '</div>';
+      list.appendChild(row);
+    });
+    list.querySelectorAll('[data-unreturn]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var l = loans.find(function(x){ return x.id===btn.getAttribute('data-unreturn'); });
+        if(l){ l.returned=false; l.returnedDate=null; saveLoans(); renderLoans(); }
+      });
+    });
+    list.querySelectorAll('[data-remove-loan-r]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var l = loans.find(function(x){ return x.id===btn.getAttribute('data-remove-loan-r'); });
+        if(l && confirm('Remove "'+l.title+'" from your loans?')){
+          loans = loans.filter(function(x){ return x.id!==l.id; });
+          saveLoans(); renderLoans();
+        }
+      });
+    });
+  }
+
+  function renderLoans(){
+    renderLoanFilter();
+    renderActiveLoans();
+    renderReturnedLoans();
+  }
+
+  function openAddLoanModal(){
+    document.getElementById('add-loan-modal').hidden = false;
+    document.getElementById('l-title').value = '';
+    document.getElementById('l-author').value = '';
+    document.getElementById('l-person').value = '';
+    document.getElementById('l-date').value = todayISO();
+    document.getElementById('err-l-title').classList.remove('show');
+    document.getElementById('err-l-person').classList.remove('show');
+    newLoanDirection = 'lent';
+    document.querySelectorAll('#loan-direction-toggle button').forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-direction')==='lent');
+    });
+    document.getElementById('l-person-label').textContent = 'Lent to';
+    document.getElementById('l-title').focus();
+  }
+  function closeAddLoanModal(){ document.getElementById('add-loan-modal').hidden = true; }
+
+  document.getElementById('fab-add-loan').addEventListener('click', openAddLoanModal);
+  document.getElementById('cancel-add-loan').addEventListener('click', closeAddLoanModal);
+  document.getElementById('add-loan-modal').addEventListener('click', function(e){
+    if(e.target.id === 'add-loan-modal') closeAddLoanModal();
+  });
+  document.querySelectorAll('#loan-direction-toggle button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      newLoanDirection = btn.getAttribute('data-direction');
+      document.querySelectorAll('#loan-direction-toggle button').forEach(function(b){ b.classList.toggle('active', b===btn); });
+      document.getElementById('l-person-label').textContent = newLoanDirection==='lent' ? 'Lent to' : 'Borrowed from';
+    });
+  });
+
+  document.getElementById('add-loan-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    try{
+      var title = document.getElementById('l-title').value.trim();
+      var author = document.getElementById('l-author').value.trim();
+      var person = document.getElementById('l-person').value.trim();
+      var date = document.getElementById('l-date').value || null;
+      var titleErr = document.getElementById('err-l-title');
+      var personErr = document.getElementById('err-l-person');
+      var valid = true;
+      if(!title){ titleErr.classList.add('show'); valid=false; } else titleErr.classList.remove('show');
+      if(!person){ personErr.classList.add('show'); valid=false; } else personErr.classList.remove('show');
+      if(!valid) return;
+      var loan = {
+        id: makeId(), title: title, author: author, person: person,
+        direction: newLoanDirection, date: date, returned: false, returnedDate: null
+      };
+      loans.push(loan);
+      saveLoans();
+      closeAddLoanModal();
+      renderLoans();
+      showToast(newLoanDirection==='lent' ? 'Added to lent books' : 'Added to borrowed books');
+    }catch(err){
+      console.error('Add loan failed:', err);
+      showToast('Something went wrong. Try again.');
+    }
+  });
+
+  // ---------- switching between the main shelf and this section ----------
+  function showMainView(){
+    document.getElementById('app-content').hidden = false;
+    document.getElementById('lending-view').hidden = true;
+    document.getElementById('fab-add').hidden = false;
+    document.getElementById('fab-add-loan').hidden = true;
+  }
+  function showLendingView(){
+    document.getElementById('app-content').hidden = true;
+    document.getElementById('lending-view').hidden = false;
+    document.getElementById('fab-add').hidden = true;
+    document.getElementById('fab-add-loan').hidden = false;
+    renderLoans();
+  }
+  document.getElementById('lending-back-btn').addEventListener('click', showMainView);
+
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape' && !document.getElementById('add-loan-modal').hidden) closeAddLoanModal();
+  });
+
+  // Start-up: read saved loans so they're ready the moment this section is opened.
+  loans = loadLoansFromStorage();
+
+  window.LendingApp = { show: showLendingView };
 })();
 </script>
 
