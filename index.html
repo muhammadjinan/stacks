@@ -66,7 +66,7 @@
       <div class="menu-list">
         <button type="button" class="menu-item" id="menu-share-btn">Share Stacks</button>
         <button type="button" class="menu-item" id="menu-lending-btn">Lending &amp; Borrowing</button>
-        <button type="button" class="menu-item" id="menu-flashcards-btn">Dictionary &amp; Flashcards</button>
+        <button type="button" class="menu-item" id="menu-flashcards-btn">Glossary &amp; Flashcards</button>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-quiet" id="menu-cancel">Close</button>
@@ -182,19 +182,12 @@
     <div class="header-top">
       <div style="display:flex; align-items:center; gap:10px;">
         <button class="icon-btn" id="fc-back-btn" aria-label="Back to your shelf" style="font-size:22px; font-weight:700;">&larr;</button>
-        <h2 style="margin:0;">Dictionary &amp; Flashcards</h2>
+        <h2 style="margin:0;">Glossary &amp; Flashcards</h2>
       </div>
     </div>
   </header>
 
-  <div class="field" style="margin-bottom: 24px;">
-    <div class="segmented" id="fc-mode-toggle">
-      <button type="button" data-fcmode="practice" class="active">Practice</button>
-      <button type="button" data-fcmode="list">Dictionary</button>
-    </div>
-  </div>
-
-  <div class="fc-stats" id="fc-stats-area">
+  <div class="fc-stats">
     <div class="fc-streak" id="fc-streak-counter">🔥 0 Day Streak</div>
     <div class="progress-track" style="margin: 0;"><div class="progress-fill-h" id="fc-progress-fill" style="width:0%;"></div></div>
   </div>
@@ -1573,7 +1566,6 @@
   var currentCardIndex = 0;
   var cardsReviewedToday = 0;
   var totalCardsDueToday = 0;
-  var fcMode = 'practice';
 
   function safeGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
   function safeSet(key, value){ try{ localStorage.setItem(key, value); return true; }catch(e){ return false; } }
@@ -1618,67 +1610,7 @@
     cardsReviewedToday = 0;
     currentCardIndex = 0;
 
-    fcMode = 'practice';
-    document.querySelectorAll('#fc-mode-toggle button').forEach(function(b){ 
-      b.classList.toggle('active', b.getAttribute('data-fcmode') === 'practice'); 
-    });
-    document.getElementById('fc-stats-area').hidden = false;
-
     renderFlashcardUI();
-  }
-
-  document.querySelectorAll('#fc-mode-toggle button').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      fcMode = btn.getAttribute('data-fcmode');
-      document.querySelectorAll('#fc-mode-toggle button').forEach(function(b){ b.classList.toggle('active', b===btn); });
-      if(fcMode === 'practice'){
-        document.getElementById('fc-stats-area').hidden = false;
-        renderFlashcardUI();
-      } else {
-        document.getElementById('fc-stats-area').hidden = true;
-        renderDictionaryList();
-      }
-    });
-  });
-
-  function renderDictionaryList() {
-    var container = document.getElementById('fc-container');
-    if(vocab.length === 0){
-      container.innerHTML = '<div class="fc-empty"><h3>Your dictionary is empty</h3><p style="margin-top:8px;">Search and save words to build your list.</p></div>';
-      return;
-    }
-    var html = '<div style="display:flex; flex-direction:column; gap:10px;">';
-    var sorted = vocab.slice().sort(function(a,b){ return a.word.localeCompare(b.word); });
-    sorted.forEach(function(v){
-      var streakStatus = (v.interval && v.interval > 1) ? '<span style="color:var(--accent-soft); font-size:12px; margin-left:8px;">★ Learned</span>' : '';
-      html += '<div class="book-row" style="align-items:flex-start; padding:16px; cursor:default;">' +
-                '<div style="flex:1;">' +
-                  '<div class="title" style="font-size:16px; margin-bottom:4px;">' + escapeHTML(v.word) + streakStatus + '</div>' +
-                  (v.phonetic ? '<div class="sub mono" style="margin-bottom:8px;">' + escapeHTML(v.phonetic) + '</div>' : '') +
-                  '<div style="font-size:13.5px; color:var(--ink); line-height:1.4;">' + escapeHTML(v.definition) + '</div>' +
-                '</div>' +
-                '<div class="row-actions" style="margin-left:12px;">' +
-                  '<button class="icon-btn" data-del-word="' + v.id + '" aria-label="Remove">&times;</button>' +
-                '</div>' +
-              '</div>';
-    });
-    html += '</div>';
-    container.innerHTML = html;
-
-    container.querySelectorAll('[data-del-word]').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var id = this.getAttribute('data-del-word');
-        var w = vocab.find(function(x){ return x.id === id; });
-        if(w && confirm('Remove "' + w.word + '" from your dictionary?')){
-          vocab = vocab.filter(function(x){ return x.id !== id; });
-          saveVocab();
-          var now = Date.now();
-          dueCards = vocab.filter(function(v) { return v.nextReviewDate <= now; });
-          totalCardsDueToday = dueCards.length;
-          renderDictionaryList();
-        }
-      });
-    });
   }
 
   document.getElementById('menu-flashcards-btn').addEventListener('click', function(){
@@ -1802,17 +1734,8 @@
   document.getElementById('close-search-modal').addEventListener('click', closeSearchModal);
   searchModal.addEventListener('click', function(e){ if(e.target === searchModal) closeSearchModal(); });
 
-  // Allow hitting "Enter" on the keyboard to trigger the search
-  searchInput.addEventListener('keydown', function(e){
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      searchBtn.click();
-    }
-  });
-
   searchBtn.addEventListener('click', async function(){
-    // Robustly strip trailing/leading spaces and replace accidental double spaces
-    var q = searchInput.value.trim().replace(/\s+/g, ' ');
+    var q = searchInput.value.trim();
     if(!q) return;
     
     // Disable button to prevent rate limiting from multiple rapid clicks
@@ -1841,24 +1764,17 @@
       } else {
         var data = await res.json();
         var entry = data[0];
-        
-        // The API sometimes hides the phonetic text inside the phonetics array instead of the top level
         var phonetic = entry.phonetic || '';
-        var audioUrl = null;
-        if (entry.phonetics && entry.phonetics.length > 0) {
-          if (!phonetic) {
-            var pt = entry.phonetics.find(function(p){ return p.text; });
-            if (pt) phonetic = pt.text;
-          }
-          var pa = entry.phonetics.find(function(p){ return p.audio; });
-          if (pa) audioUrl = pa.audio;
-        }
-        
         var def = '';
         var ex = '';
         if (entry.meanings && entry.meanings.length > 0 && entry.meanings[0].definitions.length > 0) {
           def = entry.meanings[0].definitions[0].definition || '';
           ex = entry.meanings[0].definitions[0].example || '';
+        }
+        var audioUrl = null;
+        if (entry.phonetics) {
+          var p = entry.phonetics.find(function(pt){ return pt.audio; });
+          if (p) audioUrl = p.audio;
         }
 
         searchRes.innerHTML =
