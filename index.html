@@ -7,6 +7,7 @@
 <meta name="description" content="A simple, glassy tracker for everything you're reading at once.">
 
 <link rel="manifest" href="manifest.json">
+<meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#171310">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -18,295 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
-
-<style>
-  :root{
-    --ink:#F5F0E7;
-    --ink-soft:rgba(245,240,231,0.66);
-    --ink-faint:rgba(245,240,231,0.42);
-    --glass:rgba(255,255,255,0.07);
-    --glass-border:rgba(255,255,255,0.14);
-    --glass-border-hi:rgba(255,255,255,0.30);
-    --glass-blur:blur(22px) saturate(160%);
-    --solid:rgba(21,17,14,0.90);
-    --solid-border:rgba(255,255,255,0.10);
-    --hover-fill:rgba(255,255,255,0.10);
-    --accent:#C4692F;
-    --accent-strong:#A8551F;
-    --accent-soft:#E3A87C;
-    --error:#FF6B57;
-    --shadow:0 10px 30px rgba(0,0,0,0.35);
-    --radius:14px;
-    --bg-default:linear-gradient(160deg, #2b2019 0%, #1a1512 55%, #0f0c0a 100%);
-    --scrim-gradient:linear-gradient(180deg, rgba(6,5,4,0.50) 0%, rgba(6,5,4,0.68) 60%, rgba(6,5,4,0.80) 100%);
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:#100d0b;
-    color:var(--ink);
-    font-family:'Inter',system-ui,sans-serif;
-    -webkit-font-smoothing:antialiased;
-    min-height:100vh;
-  }
-  #bg-layer{
-    position:fixed; inset:0; z-index:-2;
-    background-size:cover; background-position:center;
-    background-color:#171310;
-  }
-  #bg-layer.bg-default{ background-image:var(--bg-default); }
-  #bg-scrim{
-    position:fixed; inset:0; z-index:-1;
-    background:var(--scrim-gradient);
-    pointer-events:none;
-  }
-  h1,h2,h3{
-    font-family:'Fraunces',serif;
-    font-weight:500;
-    margin:0;
-    color:var(--ink);
-  }
-  .mono{font-family:'IBM Plex Mono',monospace;}
-  button{font-family:inherit;}
-  .wrap{
-    max-width:760px;
-    margin:0 auto;
-    padding:32px 20px 100px;
-    position:relative;
-  }
-
-  /* header */
-  .app-header{margin-bottom:22px;}
-  .app-header h1{font-size:34px; letter-spacing:-0.01em;}
-  .app-header p{margin:6px 0 0; color:var(--ink-soft); font-size:14.5px;}
-  .header-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-  .profile-btn{
-    display:flex; align-items:center; gap:8px;
-    background:none; border:none; cursor:pointer; padding:4px; border-radius:20px;
-    flex-shrink:0;
-  }
-  .profile-btn:hover{ background:var(--hover-fill); }
-  .profile-avatar{
-    width:34px; height:34px; border-radius:50%;
-    background:var(--accent); color:#fff;
-    display:flex; align-items:center; justify-content:center;
-    font-size:13px; font-weight:600; font-family:'Inter',sans-serif;
-    background-size:cover; background-position:center; flex-shrink:0;
-  }
-  .profile-avatar-lg{ width:52px; height:52px; font-size:17px; }
-  .profile-name{ font-size:13px; color:var(--ink-soft); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .backup-row{ margin-top:10px; }
-  .link-btn{
-    background:none; border:none; padding:0; cursor:pointer;
-    font-size:12.5px; color:var(--ink-soft); text-decoration:underline;
-    text-underline-offset:2px;
-  }
-  .link-btn:hover{ color:var(--accent-soft); }
-  .backup-sep{ color:var(--ink-faint); margin:0 8px; font-size:12.5px; }
-
-  /* shared glass surface */
-  .stat-chip, .book-row, .goal-card, .section-empty, .book-card{
-    background:var(--glass);
-    backdrop-filter:var(--glass-blur);
-    -webkit-backdrop-filter:var(--glass-blur);
-    border:1px solid var(--glass-border);
-    border-top-color:var(--glass-border-hi);
-    box-shadow:var(--shadow);
-  }
-
-  .stats-row{ display:flex; gap:10px; margin:0 0 24px; flex-wrap:wrap; }
-  .stat-chip{ border-radius:var(--radius); padding:10px 16px; flex:1 1 120px; min-width:100px; }
-  .stat-chip .num{font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:500; color:var(--accent-soft);}
-  .stat-chip .lbl{font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.05em; margin-top:2px;}
-
-  /* goal ring */
-  .goal-card{ border-radius:var(--radius); padding:20px 22px; display:flex; align-items:center; gap:18px; }
-  .goal-ring-wrap{ position:relative; width:88px; height:88px; flex-shrink:0; }
-  .goal-ring-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
-  .goal-ring-track{ fill:none; stroke:rgba(255,255,255,0.16); stroke-width:10; }
-  .goal-ring-fill{ fill:none; stroke:var(--accent); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 0.5s ease; }
-  .goal-ring-number{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:22px; color:var(--ink); }
-  .goal-info h3{ font-size:16px; margin-bottom:4px; }
-  .goal-info p{ margin:0; font-size:12.5px; color:var(--ink-soft); }
-
-  /* genre filter */
-  .genre-filter-row{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 22px; }
-  .genre-chip{
-    background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); border-radius:20px;
-    padding:7px 14px; font-size:13px; cursor:pointer; color:var(--ink-soft);
-  }
-  .genre-chip:hover{ border-color:var(--accent); }
-  .genre-chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .genre-chip:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
-  .detail-genre{
-    display:block; margin-top:8px; height:28px; font-size:12.5px; padding:0 10px;
-    border-radius:14px; border:1px solid var(--glass-border);
-    background:rgba(255,255,255,0.08); color:var(--ink-soft); cursor:pointer;
-  }
-  .detail-genre:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
-
-  /* sections */
-  section{margin-bottom:34px;}
-  section h2{font-size:19px; margin-bottom:14px;}
-  .section-empty{ color:var(--ink-soft); font-size:14px; border-radius:var(--radius); padding:22px; text-align:center; border-style:dashed; }
-  .section-empty button{margin-top:12px;}
-
-  /* shelf: simple horizontal-scrolling book cards */
-  .shelf-scroll{ display:flex; align-items:stretch; gap:10px; overflow-x:auto; padding:4px 4px 14px; }
-  .book-card{
-    position:relative;
-    flex:0 0 136px; width:136px;
-    border-radius:12px;
-    border-left:4px solid var(--accent);
-    padding:14px 12px;
-    cursor:pointer;
-    display:flex; flex-direction:column; gap:14px;
-    transition:transform 0.15s ease;
-  }
-  .book-card:hover{ transform:translateY(-3px); }
-  .book-card:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
-  .book-card.selected{ transform:translateY(-4px); box-shadow:0 6px 16px rgba(0,0,0,0.45); border-color:var(--accent); }
-  .book-card-title{
-    font-family:'Fraunces',serif; font-weight:500; font-size:14.5px; line-height:1.3;
-    color:var(--ink);
-    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
-  }
-  .book-card-progress-track{ height:6px; background:rgba(255,255,255,0.16); border-radius:4px; overflow:hidden; margin-top:auto; }
-  .book-card-progress-fill{ height:100%; background:var(--accent); border-radius:4px; transition:width 0.4s ease; }
-  .add-card{
-    flex:0 0 90px; width:90px; min-height:96px;
-    border-radius:12px;
-    border:1.5px dashed var(--glass-border); background:transparent;
-    color:var(--ink-soft); font-size:24px; cursor:pointer;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .add-card:hover{ border-color:var(--accent); color:var(--accent-soft); }
-
-  /* detail panel: near-opaque for readability */
-  .detail-panel{
-    margin-top:14px;
-    background:var(--solid);
-    backdrop-filter:blur(10px);
-    -webkit-backdrop-filter:blur(10px);
-    border:1px solid var(--solid-border);
-    border-radius:var(--radius);
-    padding:20px 22px;
-    box-shadow:var(--shadow);
-  }
-  .detail-panel[hidden]{display:none;}
-  .detail-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-  .detail-top h3{ font-size:20px; }
-  .detail-author{ color:var(--ink-soft); font-size:13.5px; margin-top:2px; }
-  .icon-btn{
-    background:none; border:none; color:var(--ink-soft);
-    font-size:18px; cursor:pointer; padding:4px 6px; border-radius:6px; line-height:1;
-  }
-  .icon-btn:hover{ background:var(--hover-fill); color:var(--ink); }
-
-  .progress-track{ height:8px; background:rgba(255,255,255,0.14); border-radius:5px; margin:16px 0 6px; overflow:hidden; }
-  .progress-fill-h{ height:100%; background:var(--accent); border-radius:5px; transition:width 0.4s ease; }
-  .progress-label{ font-size:12.5px; color:var(--ink-soft); display:flex; justify-content:space-between; }
-
-  .detail-meta{ display:flex; gap:22px; margin:16px 0 4px; flex-wrap:wrap; }
-  .detail-meta div .num{ font-size:16px; }
-  .detail-meta div .lbl{ font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; }
-
-  .log-row{ display:flex; gap:8px; margin-top:18px; flex-wrap:wrap; align-items:center; }
-  .chip{ background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); border-radius:20px; padding:7px 14px; font-size:13px; cursor:pointer; color:var(--ink); }
-  .chip:hover{ border-color:var(--accent); }
-  .page-input{
-    width:90px; height:36px; border-radius:8px; border:1px solid var(--glass-border);
-    padding:0 10px; font-size:14px; font-family:'IBM Plex Mono',monospace;
-    background:rgba(255,255,255,0.06); color:var(--ink);
-  }
-  .page-input:focus, .chip:focus-visible, .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
-  .btn{
-    border-radius:8px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.08);
-    padding:8px 14px; font-size:13.5px; cursor:pointer; color:var(--ink);
-  }
-  .btn:hover{ border-color:var(--accent); }
-  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .btn-primary:hover{ background:var(--accent-strong); border-color:var(--accent-strong); }
-  .btn-quiet{ border-color:transparent; background:transparent; color:var(--ink-soft); }
-  .detail-actions{ display:flex; gap:10px; margin-top:18px; border-top:1px solid var(--glass-border); padding-top:14px; }
-
-  /* lists */
-  .book-row{ display:flex; align-items:center; justify-content:space-between; border-radius:10px; padding:12px 14px; margin-bottom:8px; }
-  .book-row .title{ font-size:14.5px; font-weight:500; }
-  .book-row .sub{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
-  .row-actions{ display:flex; gap:6px; align-items:center; }
-
-  /* fab */
-  .fab{
-    position:fixed; right:22px; bottom:22px;
-    width:56px; height:56px; border-radius:50%;
-    background:var(--accent); color:#fff; border:none;
-    font-size:26px; cursor:pointer;
-    box-shadow:0 4px 16px rgba(0,0,0,0.45);
-    display:flex; align-items:center; justify-content:center;
-    z-index:10;
-  }
-  .fab:hover{ background:var(--accent-strong); }
-  .fab:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
-
-  /* modal */
-  .modal-overlay{
-    position:fixed; inset:0; background:rgba(5,4,3,0.6);
-    display:flex; align-items:center; justify-content:center;
-    padding:20px; z-index:50; overflow-y:auto;
-  }
-  .modal-overlay[hidden]{ display:none; }
-  .modal{
-    background:var(--solid); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-    border:1px solid var(--solid-border);
-    border-radius:14px; padding:26px;
-    max-width:400px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,0.5);
-    margin:auto;
-  }
-  .modal h2{ font-size:20px; margin-bottom:6px; }
-  .modal-subtitle{ color:var(--ink-soft); font-size:13px; margin:0 0 16px; }
-  .field{ margin-bottom:14px; }
-  .field label{ display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em; }
-  .field input, .field select{
-    width:100%; height:38px; border-radius:8px; border:1px solid var(--glass-border);
-    padding:0 12px; font-size:14.5px; font-family:'Inter',sans-serif;
-    background:rgba(255,255,255,0.06); color:var(--ink);
-  }
-  .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
-  .field input::placeholder{ color:var(--ink-faint); }
-  .field-hint{ font-size:12px; color:var(--ink-faint); margin:6px 0 0; }
-  .profile-pic-row{ display:flex; align-items:center; gap:14px; }
-  .bg-preview{
-    width:100%; height:90px; border-radius:10px; border:1px solid var(--glass-border);
-    background-image:var(--bg-default); background-size:cover; background-position:center;
-    margin-bottom:8px;
-  }
-  .bg-actions{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-  .segmented{ display:flex; gap:8px; }
-  .segmented button{ flex:1; padding:9px 0; border-radius:8px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.06); cursor:pointer; font-size:13.5px; color:var(--ink-soft); }
-  .segmented button.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
-  .error-text{ color:var(--error); font-size:12.5px; margin-top:5px; display:none; }
-  .error-text.show{ display:block; }
-
-  /* toast */
-  #toast{
-    position:fixed; left:50%; bottom:90px; transform:translateX(-50%) translateY(20px);
-    background:rgba(20,16,13,0.95); color:var(--ink); padding:10px 18px; border-radius:20px;
-    font-size:13.5px; opacity:0; pointer-events:none; transition:opacity 0.25s ease, transform 0.25s ease;
-    z-index:60; border:1px solid var(--glass-border);
-  }
-  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
-
-  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
-
-  @media (max-width:480px){
-    .app-header h1{ font-size:28px; }
-    .detail-meta{ gap:14px; }
-    .goal-card{ gap:14px; padding:16px 18px; }
-    .goal-ring-wrap{ width:76px; height:76px; }
-  }
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -318,8 +31,11 @@
   <header class="app-header">
     <div class="header-top">
       <div>
-        <h1>Stacks</h1>
-        <p>Every book you're reading, on one shelf.</p>
+        <div class="title-row">
+          <button class="menu-btn" id="menu-btn" aria-haspopup="dialog" aria-label="Menu">&#9776;</button>
+          <h1>Stacks</h1>
+        </div>
+        <p id="app-tagline">Every book you're reading, on one shelf.</p>
       </div>
       <button class="profile-btn" id="profile-btn" aria-label="Personalize">
         <span class="profile-avatar" id="profile-avatar">+</span>
@@ -333,6 +49,30 @@
       <input type="file" id="import-file" accept="application/json" hidden>
     </div>
   </header>
+
+  <div class="modal-overlay" id="genre-picker-modal" hidden style="z-index:70;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="genre-picker-title">
+      <h2 id="genre-picker-title">Genre</h2>
+      <div class="menu-list" id="genre-picker-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-quiet" id="genre-picker-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="menu-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="menu-modal-title">
+      <h2 id="menu-modal-title">Stacks</h2>
+      <div class="menu-list">
+        <button type="button" class="menu-item" id="menu-share-btn">Share Stacks</button>
+        <button type="button" class="menu-item" id="menu-lending-btn">Lending &amp; Borrowing</button>
+        <button type="button" class="menu-item" id="menu-flashcards-btn">Glossary &amp; Flashcards</button>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-quiet" id="menu-cancel">Close</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="profile-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
@@ -395,10 +135,11 @@
 
   <div class="genre-filter-row" id="genre-filter-row" hidden></div>
 
+  <div class="detail-panel" id="detail-panel" hidden></div>
+
   <section id="shelf-section">
     <h2>Currently reading</h2>
     <div class="shelf-scroll" id="shelf"></div>
-    <div class="detail-panel" id="detail-panel" hidden></div>
   </section>
 
   <section id="want-section" hidden>
@@ -413,7 +154,108 @@
 
 </div>
 
-<button class="fab" id="fab-add" aria-label="Add a book">+</button>
+<div class="wrap" id="lending-view" hidden>
+  <header class="app-header">
+    <div class="header-top">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="icon-btn" id="lending-back-btn" aria-label="Back to your shelf" style="font-size:22px; font-weight:700;">&larr;</button>
+        <h2 style="margin:0;">Lending &amp; Borrowing</h2>
+      </div>
+    </div>
+  </header>
+
+  <div class="genre-filter-row" id="loan-filter-row"></div>
+
+  <section id="active-loans-section">
+    <h2>Out right now</h2>
+    <div id="active-loans-list"></div>
+  </section>
+
+  <section id="returned-loans-section" hidden>
+    <h2>Returned</h2>
+    <div id="returned-loans-list"></div>
+  </section>
+</div>
+
+<div class="wrap" id="flashcards-view" hidden>
+  <header class="app-header">
+    <div class="header-top">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="icon-btn" id="fc-back-btn" aria-label="Back to your shelf" style="font-size:22px; font-weight:700;">&larr;</button>
+        <h2 style="margin:0;">Glossary &amp; Flashcards</h2>
+      </div>
+    </div>
+  </header>
+
+  <div class="fc-stats">
+    <div class="fc-streak" id="fc-streak-counter">🔥 0 Day Streak</div>
+    <div class="progress-track" style="margin: 0;"><div class="progress-fill-h" id="fc-progress-fill" style="width:0%;"></div></div>
+  </div>
+
+  <div id="fc-container"></div>
+</div>
+
+<div class="fab-container" id="fab-main">
+  <button class="fab-mini" id="fab-word-search" aria-label="Word Search" title="Word Search">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+  </button>
+  <button class="fab-mini" id="fab-add-book" aria-label="Add Book" title="Add Book">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+  </button>
+  <button class="fab-toggle" id="fab-toggle-btn" aria-label="Menu">+</button>
+</div>
+<button class="fab" id="fab-add-loan" aria-label="Add a loan" hidden>+</button>
+
+<div class="modal-overlay" id="word-search-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ws-modal-title">
+    <h2 id="ws-modal-title">Dictionary Search</h2>
+    <div class="field">
+      <input id="dict-search-input" type="text" placeholder="Word or sentence..." autocomplete="off">
+    </div>
+    <div class="modal-actions" style="margin-top:14px; margin-bottom: 20px;">
+      <button type="button" class="btn btn-quiet" id="close-search-modal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="dict-search-btn">Search</button>
+    </div>
+    <div id="dict-search-results"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-loan-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="loan-modal-title">
+    <h2 id="loan-modal-title">Add a loan</h2>
+    <form id="add-loan-form" novalidate>
+      <div class="field">
+        <label>Type</label>
+        <div class="segmented" id="loan-direction-toggle">
+          <button type="button" data-direction="lent" class="active">I lent this out</button>
+          <button type="button" data-direction="borrowed">I borrowed this</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="l-title">Book title</label>
+        <input id="l-title" type="text" placeholder="The Kite Runner" autocomplete="off">
+        <div class="error-text" id="err-l-title">Enter a title.</div>
+      </div>
+      <div class="field">
+        <label for="l-author">Author (optional)</label>
+        <input id="l-author" type="text" placeholder="Khaled Hosseini" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="l-person" id="l-person-label">Lent to</label>
+        <input id="l-person" type="text" placeholder="Name" autocomplete="off">
+        <div class="error-text" id="err-l-person">Enter a name.</div>
+      </div>
+      <div class="field">
+        <label for="l-date">Date (optional)</label>
+        <input id="l-date" type="date">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-quiet" id="cancel-add-loan">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="modal-overlay" id="add-modal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -434,8 +276,11 @@
         <div class="error-text" id="err-pages">Enter the number of pages.</div>
       </div>
       <div class="field">
-        <label for="f-genre">Genre (optional)</label>
-        <select id="f-genre"></select>
+        <label id="f-genre-label">Genre (optional)</label>
+        <button type="button" class="genre-trigger" id="f-genre-trigger" aria-haspopup="dialog" aria-labelledby="f-genre-label f-genre-value">
+          <span id="f-genre-value">Unknown</span>
+          <span class="genre-trigger-chevron">&#9662;</span>
+        </button>
       </div>
       <div class="field">
         <label>Status</label>
@@ -467,7 +312,6 @@
 
 <script>
   // ---------- storage: one simple, synchronous place for everything saved on this device ----------
-  // Plain localStorage, read BEFORE anything is drawn, so there is no timing to get wrong.
   var BOOKS_KEY = 'stacks_library_v1';
   var VALID_STATUS = { reading:1, want:1, finished:1 };
 
@@ -505,7 +349,6 @@
     };
   }
 
-  // Cleans any list of books (from storage or an imported file); drops entries that can't be a book.
   function cleanBooks(list){
     var seen = {}, out = [];
     list.forEach(function(item){
@@ -528,7 +371,6 @@
       if(parsed.length && !cleaned.length) throw new Error('nothing usable');
       return cleaned;
     }catch(e){
-      // Never let unreadable data be silently overwritten: keep a copy first.
       safeSet(BOOKS_KEY + '_unreadable', raw);
       showToast("Your saved books couldn't be read. A copy was kept safe.");
       return [];
@@ -536,7 +378,53 @@
   }
   function saveBooksToStorage(list){ return safeSet(BOOKS_KEY, JSON.stringify(list)); }
 
-  // Ask the browser not to clear this site's data when the device is short on space.
+  var LOANS_KEY = 'stacks_loans_v1';
+  var VALID_DIRECTION = { lent:1, borrowed:1 };
+
+  function normalizeLoan(l){
+    if(!l || typeof l !== 'object') return null;
+    var title = (typeof l.title === 'string') ? l.title.trim() : '';
+    var person = (typeof l.person === 'string') ? l.person.trim() : '';
+    if(!title || !person) return null;
+    return {
+      id: (typeof l.id === 'string' && l.id) ? l.id : makeId(),
+      title: title,
+      author: (typeof l.author === 'string') ? l.author : '',
+      person: person,
+      direction: VALID_DIRECTION[l.direction] ? l.direction : 'lent',
+      date: (typeof l.date === 'string' && l.date) ? l.date : null,
+      returned: !!l.returned,
+      returnedDate: (typeof l.returnedDate === 'string') ? l.returnedDate : null
+    };
+  }
+  function cleanLoans(list){
+    var seen = {}, out = [];
+    list.forEach(function(item){
+      var l = normalizeLoan(item);
+      if(!l) return;
+      while(seen[l.id]) l.id = makeId();
+      seen[l.id] = true;
+      out.push(l);
+    });
+    return out;
+  }
+  function loadLoansFromStorage(){
+    var raw = safeGet(LOANS_KEY);
+    if(raw === null || raw === '') return [];
+    try{
+      var parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) throw new Error('not a list');
+      var cleaned = cleanLoans(parsed);
+      if(parsed.length && !cleaned.length) throw new Error('nothing usable');
+      return cleaned;
+    }catch(e){
+      safeSet(LOANS_KEY + '_unreadable', raw);
+      showToast("Your saved loans couldn't be read. A copy was kept safe.");
+      return [];
+    }
+  }
+  function saveLoansToStorage(list){ return safeSet(LOANS_KEY, JSON.stringify(list)); }
+
   try{
     if(navigator.storage && navigator.storage.persist){
       var persistReq = navigator.storage.persist();
@@ -680,7 +568,7 @@
     if(themeMeta) themeMeta.setAttribute('content', accent);
   }
 
-  // ---------- local profile: name, picture, background, goal. Stored only on this device. ----------
+  // ---------- local profile: name, picture, background, goal. ----------
   var PROFILE_KEY = 'stacks_profile';
   var pendingAvatarDataUrl = null;
   var pendingBackgroundDataUrl = null;
@@ -741,6 +629,56 @@
     document.getElementById('profile-modal').hidden = false;
   }
   function closeProfileModal(){ document.getElementById('profile-modal').hidden = true; }
+
+  // ---------- menu ----------
+  function openMenuModal(){ document.getElementById('menu-modal').hidden = false; }
+  function closeMenuModal(){ document.getElementById('menu-modal').hidden = true; }
+  document.getElementById('menu-btn').addEventListener('click', openMenuModal);
+  document.getElementById('menu-cancel').addEventListener('click', closeMenuModal);
+  document.getElementById('menu-modal').addEventListener('click', function(e){
+    if(e.target.id === 'menu-modal') closeMenuModal();
+  });
+
+  async function performShare(){
+    var shareData = {
+      title: 'Stacks — Reading Tracker',
+      text: "Track every book you're reading, on one shelf.",
+      url: window.location.href
+    };
+    if(navigator.share){
+      try{ await navigator.share(shareData); return; }catch(err){ if(err && err.name === 'AbortError') return; }
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      try{ await navigator.clipboard.writeText(shareData.url); showToast('Link copied to clipboard'); return; }catch(err){}
+    }
+    showToast("Couldn't share automatically — copy this page's link instead.");
+  }
+  document.getElementById('menu-share-btn').addEventListener('click', function(){
+    closeMenuModal();
+    performShare();
+  });
+  document.getElementById('menu-lending-btn').addEventListener('click', function(){
+    closeMenuModal();
+    if(window.LendingApp && window.LendingApp.show) window.LendingApp.show();
+  });
+
+  function formatCaption(entry){
+    var fallback = "Every book you're reading, on one shelf.";
+    if(!entry || typeof entry.text !== 'string' || !entry.text.trim()) return fallback;
+    return entry.author ? (entry.text + ' — ' + entry.author) : entry.text;
+  }
+  async function loadCaption(){
+    try{
+      var res = await fetch('captions.json', { cache: 'no-cache' });
+      if(!res.ok) return;
+      var list = await res.json();
+      if(!Array.isArray(list) || list.length === 0) return;
+      var pick = list[Math.floor(Math.random() * list.length)];
+      var el = document.getElementById('app-tagline');
+      if(el) el.textContent = formatCaption(pick);
+    }catch(e){}
+  }
+  loadCaption();
 
   document.getElementById('profile-btn').addEventListener('click', openProfileModal);
   document.getElementById('profile-cancel').addEventListener('click', closeProfileModal);
@@ -805,7 +743,6 @@
     showToast('Saved');
   });
 
-  // Start-up: load the saved profile and apply it immediately (synchronous, so nothing shows un-themed).
   currentProfile = loadProfile();
   applyTheme(currentProfile);
   renderProfileBadge(currentProfile);
@@ -816,18 +753,47 @@
   var books = [];
   var selectedId = null;
   var newBookStatus = 'reading';
+  var newBookGenre = 'Unknown';
   var activeGenre = 'all';
 
   var GENRES = ['Unknown','Biography & Memoir','Business','Fantasy & Sci-Fi','Fiction','History',
     'Mystery & Thriller','Non-Fiction','Poetry','Religion & Spirituality','Romance','Science',
     'Self-Help','Young Adult'];
 
-  function genreOptionsHTML(selected){
-    return GENRES.map(function(g){
-      return '<option value="'+g+'"'+(g===selected?' selected':'')+'>'+g+'</option>';
+  var genrePickerCallback = null;
+  function renderGenrePickerList(selected){
+    var list = document.getElementById('genre-picker-list');
+    list.innerHTML = GENRES.map(function(g){
+      return '<button type="button" class="menu-item'+(g===selected?' active':'')+'" data-genre-pick="'+g+'">'+g+'</button>';
     }).join('');
+    list.querySelectorAll('[data-genre-pick]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var picked = btn.getAttribute('data-genre-pick');
+        var cb = genrePickerCallback;
+        closeGenrePicker();
+        if(cb) cb(picked);
+      });
+    });
   }
-  document.getElementById('f-genre').innerHTML = genreOptionsHTML('Unknown');
+  function openGenrePicker(currentValue, onSelect){
+    genrePickerCallback = onSelect;
+    renderGenrePickerList(currentValue || 'Unknown');
+    document.getElementById('genre-picker-modal').hidden = false;
+  }
+  function closeGenrePicker(){
+    document.getElementById('genre-picker-modal').hidden = true;
+    genrePickerCallback = null;
+  }
+  document.getElementById('genre-picker-cancel').addEventListener('click', closeGenrePicker);
+  document.getElementById('genre-picker-modal').addEventListener('click', function(e){
+    if(e.target.id === 'genre-picker-modal') closeGenrePicker();
+  });
+  document.getElementById('f-genre-trigger').addEventListener('click', function(){
+    openGenrePicker(newBookGenre, function(picked){
+      newBookGenre = picked;
+      document.getElementById('f-genre-value').textContent = picked;
+    });
+  });
 
   var SPINES = [
     {deep:'#5B4B8A', light:'#B7ACD6'},
@@ -1004,62 +970,99 @@
 
   function escapeHTML(str){ var d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
 
-  function selectBook(id){ selectedId = (selectedId===id) ? null : id; renderShelf(); renderDetail(); }
+  function selectBook(id){
+    selectedId = (selectedId===id) ? null : id;
+    renderAll();
+    if(selectedId){
+      var panel = document.getElementById('detail-panel');
+      if(panel && panel.scrollIntoView) panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+  }
 
   function renderDetail(){
     var panel = document.getElementById('detail-panel');
     var book = books.find(function(b){ return b.id===selectedId; });
     if(!book){ panel.hidden=true; panel.innerHTML=''; return; }
     panel.hidden = false;
-    var pct = Math.max(0, Math.min(100, Math.round((book.currentPage/book.totalPages)*100)));
-    var p = pace(book);
-    var remaining = Math.max(0, book.totalPages - book.currentPage);
-    var etaText = 'Log a few pages to see your pace';
-    if(p){
-      var days = Math.ceil(remaining/p);
-      etaText = days<=0 ? 'Almost there' : ('~'+days+' day'+(days===1?'':'s')+' left at this pace');
+
+    var body;
+    if(book.status === 'reading'){
+      var pct = Math.max(0, Math.min(100, Math.round((book.currentPage/book.totalPages)*100)));
+      var p = pace(book);
+      var remaining = Math.max(0, book.totalPages - book.currentPage);
+      var etaText = 'Log a few pages to see your pace';
+      if(p){
+        var days = Math.ceil(remaining/p);
+        etaText = days<=0 ? 'Almost there' : ('~'+days+' day'+(days===1?'':'s')+' left at this pace');
+      }
+      body =
+        '<div class="progress-track"><div class="progress-fill-h" style="width:'+pct+'%;"></div></div>'+
+        '<div class="progress-label"><span>Page '+book.currentPage+' of '+book.totalPages+'</span><span>'+pct+'%</span></div>'+
+        '<div class="detail-meta">'+
+          '<div><div class="num mono">'+(p?Math.round(p):'—')+'</div><div class="lbl">Pages / day</div></div>'+
+          '<div><div class="num" style="font-size:13.5px; padding-top:4px;">'+etaText+'</div></div>'+
+        '</div>'+
+        '<div class="log-row">'+
+          '<button class="chip" data-add="1">+1 page</button>'+
+          '<button class="chip" data-add="25">+25 pages</button>'+
+          '<input type="number" class="page-input" id="set-page-input" value="'+book.currentPage+'" min="0" max="'+book.totalPages+'" aria-label="Current page">'+
+          '<button class="btn" id="set-page-btn">Set page</button>'+
+        '</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="mark-finished-btn">Mark as finished</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
+    } else if(book.status === 'finished'){
+      body =
+        '<div class="detail-info">Finished '+formatDate(book.finishedDate)+' &middot; '+book.totalPages+' pages</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="unfinish-btn">Move back to reading</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
+    } else {
+      body =
+        '<div class="detail-info">'+book.totalPages+' pages &middot; not started yet</div>'+
+        '<div class="detail-actions">'+
+          '<button class="btn" id="start-reading-btn">Start reading</button>'+
+          '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
+        '</div>';
     }
+
     panel.innerHTML =
       '<div class="detail-top">'+
         '<div><h3>'+escapeHTML(book.title)+'</h3><div class="detail-author">'+escapeHTML(book.author||'')+'</div>'+
-        '<select class="detail-genre" id="detail-genre-select" aria-label="Genre">'+genreOptionsHTML(book.genre||'Unknown')+'</select></div>'+
+        '<button type="button" class="detail-genre" id="detail-genre-trigger" aria-haspopup="dialog" aria-label="Genre">'+
+          '<span>'+escapeHTML(book.genre||'Unknown')+'</span><span class="genre-trigger-chevron">&#9662;</span>'+
+        '</button></div>'+
         '<button class="icon-btn" id="close-detail" aria-label="Close">&times;</button>'+
       '</div>'+
-      '<div class="progress-track"><div class="progress-fill-h" style="width:'+pct+'%;"></div></div>'+
-      '<div class="progress-label"><span>Page '+book.currentPage+' of '+book.totalPages+'</span><span>'+pct+'%</span></div>'+
-      '<div class="detail-meta">'+
-        '<div><div class="num mono">'+(p?Math.round(p):'—')+'</div><div class="lbl">Pages / day</div></div>'+
-        '<div><div class="num" style="font-size:13.5px; padding-top:4px;">'+etaText+'</div></div>'+
-      '</div>'+
-      '<div class="log-row">'+
-        '<button class="chip" data-add="1">+1 page</button>'+
-        '<button class="chip" data-add="25">+25 pages</button>'+
-        '<input type="number" class="page-input" id="set-page-input" value="'+book.currentPage+'" min="0" max="'+book.totalPages+'" aria-label="Current page">'+
-        '<button class="btn" id="set-page-btn">Set page</button>'+
-      '</div>'+
-      '<div class="detail-actions">'+
-        '<button class="btn" id="mark-finished-btn">Mark as finished</button>'+
-        '<button class="btn btn-quiet" id="remove-book-btn">Remove book</button>'+
-      '</div>';
+      body;
 
-    panel.querySelector('#detail-genre-select').addEventListener('change', function(e){
-      book.genre = e.target.value || 'Unknown';
-      saveBooks();
-      renderGenreFilter();
-      renderShelf();
-      renderWant();
-      renderFinished();
+    panel.querySelector('#detail-genre-trigger').addEventListener('click', function(){
+      openGenrePicker(book.genre||'Unknown', function(picked){
+        book.genre = picked;
+        saveBooks();
+        renderAll();
+      });
     });
-    panel.querySelector('#close-detail').addEventListener('click', function(){ selectedId=null; renderShelf(); renderDetail(); });
-    panel.querySelectorAll('[data-add]').forEach(function(chip){
-      chip.addEventListener('click', function(){ applyProgress(book, parseInt(chip.getAttribute('data-add'),10)); });
-    });
-    panel.querySelector('#set-page-btn').addEventListener('click', function(){
-      var val = parseInt(panel.querySelector('#set-page-input').value, 10);
-      if(isNaN(val) || val<0) return;
-      applyProgress(book, val-book.currentPage, val);
-    });
-    panel.querySelector('#mark-finished-btn').addEventListener('click', function(){ finishBook(book); });
+    panel.querySelector('#close-detail').addEventListener('click', function(){ selectedId=null; renderAll(); });
+
+    if(book.status === 'reading'){
+      panel.querySelectorAll('[data-add]').forEach(function(chip){
+        chip.addEventListener('click', function(){ applyProgress(book, parseInt(chip.getAttribute('data-add'),10)); });
+      });
+      panel.querySelector('#set-page-btn').addEventListener('click', function(){
+        var val = parseInt(panel.querySelector('#set-page-input').value, 10);
+        if(isNaN(val) || val<0) return;
+        applyProgress(book, val-book.currentPage, val);
+      });
+      panel.querySelector('#mark-finished-btn').addEventListener('click', function(){ finishBook(book); });
+    } else if(book.status === 'finished'){
+      panel.querySelector('#unfinish-btn').addEventListener('click', function(){ moveBackToReading(book); });
+    } else {
+      panel.querySelector('#start-reading-btn').addEventListener('click', function(){ startReading(book); });
+    }
+
     panel.querySelector('#remove-book-btn').addEventListener('click', function(){
       if(confirm('Remove "'+book.title+'" from Stacks?')){
         books = books.filter(function(b){ return b.id!==book.id; });
@@ -1072,7 +1075,20 @@
   }
 
   function applyProgress(book, delta, absoluteValue){
-    if(delta>0){ book.sessions = book.sessions || []; book.sessions.push({date: todayISO(), pages: delta}); }
+    if(delta !== 0){
+      book.sessions = book.sessions || [];
+      var today = todayISO();
+      var todaysSession = book.sessions.find(function(s){ return s.date===today; });
+      if(delta > 0){
+        if(todaysSession) todaysSession.pages += delta;
+        else book.sessions.push({date: today, pages: delta});
+      } else if(todaysSession){
+        todaysSession.pages += delta;
+        if(todaysSession.pages <= 0){
+          book.sessions = book.sessions.filter(function(s){ return s !== todaysSession; });
+        }
+      }
+    }
     book.currentPage = (typeof absoluteValue==='number') ? absoluteValue : Math.min(book.totalPages, book.currentPage+delta);
     if(book.currentPage >= book.totalPages){ finishBook(book); return; }
     saveBooks();
@@ -1088,6 +1104,15 @@
     saveBooks();
     renderAll();
     showToast('Finished — nice work.');
+  }
+
+  function moveBackToReading(book){
+    book.status = 'reading';
+    book.finishedDate = null;
+    if(!book.startedDate) book.startedDate = todayISO();
+    saveBooks();
+    renderAll();
+    showToast('Moved back to your shelf');
   }
 
   function startReading(book){
@@ -1111,26 +1136,34 @@
     list.innerHTML = '';
     items.forEach(function(b){
       var row = document.createElement('div');
-      row.className = 'book-row';
+      row.className = 'book-row' + (b.id===selectedId ? ' selected' : '');
+      row.tabIndex = 0;
+      row.setAttribute('role','button');
+      row.setAttribute('aria-label', 'Open ' + b.title);
       row.innerHTML =
         '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+genreSuffix(b)+' &middot; '+b.totalPages+' pages</div></div>'+
         '<div class="row-actions">'+
           '<button class="btn" data-start="'+b.id+'">Start reading</button>'+
           '<button class="icon-btn" data-remove="'+b.id+'" aria-label="Remove">&times;</button>'+
         '</div>';
+      row.addEventListener('click', function(){ selectBook(b.id); });
+      row.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectBook(b.id); } });
       list.appendChild(row);
     });
     list.querySelectorAll('[data-start]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-start'); });
         if(b) startReading(b);
       });
     });
     list.querySelectorAll('[data-remove]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-remove'); });
         if(b && confirm('Remove "'+b.title+'"?')){
           books = books.filter(function(x){ return x.id!==b.id; });
+          if(selectedId===b.id) selectedId=null;
           saveBooks();
           renderAll();
         }
@@ -1148,17 +1181,24 @@
     list.innerHTML = '';
     items.forEach(function(b){
       var row = document.createElement('div');
-      row.className = 'book-row';
+      row.className = 'book-row' + (b.id===selectedId ? ' selected' : '');
+      row.tabIndex = 0;
+      row.setAttribute('role','button');
+      row.setAttribute('aria-label', 'Open ' + b.title);
       row.innerHTML =
         '<div><div class="title">'+escapeHTML(b.title)+'</div><div class="sub">'+escapeHTML(b.author||'')+genreSuffix(b)+' &middot; finished '+formatDate(b.finishedDate)+'</div></div>'+
         '<div class="row-actions"><button class="icon-btn" data-remove-f="'+b.id+'" aria-label="Remove">&times;</button></div>';
+      row.addEventListener('click', function(){ selectBook(b.id); });
+      row.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectBook(b.id); } });
       list.appendChild(row);
     });
     list.querySelectorAll('[data-remove-f]').forEach(function(btn){
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         var b = books.find(function(x){ return x.id===btn.getAttribute('data-remove-f'); });
         if(b && confirm('Remove "'+b.title+'" from your finished list?')){
           books = books.filter(function(x){ return x.id!==b.id; });
+          if(selectedId===b.id) selectedId=null;
           saveBooks();
           renderAll();
         }
@@ -1181,7 +1221,8 @@
     document.getElementById('f-title').value = '';
     document.getElementById('f-author').value = '';
     document.getElementById('f-pages').value = '';
-    document.getElementById('f-genre').value = 'Unknown';
+    newBookGenre = 'Unknown';
+    document.getElementById('f-genre-value').textContent = 'Unknown';
     document.getElementById('err-title').classList.remove('show');
     document.getElementById('err-pages').classList.remove('show');
     newBookStatus = 'reading';
@@ -1192,15 +1233,19 @@
   }
   function closeAddModal(){ document.getElementById('add-modal').hidden = true; }
 
-  document.getElementById('fab-add').addEventListener('click', openAddModal);
+  // Expose for FAB external calling
+  window.openAddModal = openAddModal;
+
   document.getElementById('cancel-add').addEventListener('click', closeAddModal);
   document.getElementById('add-modal').addEventListener('click', function(e){
     if(e.target.id === 'add-modal') closeAddModal();
   });
   document.addEventListener('keydown', function(e){
     if(e.key==='Escape'){
-      if(!document.getElementById('add-modal').hidden) closeAddModal();
+      if(!document.getElementById('genre-picker-modal').hidden) closeGenrePicker();
+      else if(!document.getElementById('add-modal').hidden) closeAddModal();
       if(!document.getElementById('profile-modal').hidden) closeProfileModal();
+      if(!document.getElementById('menu-modal').hidden) closeMenuModal();
     }
   });
   document.querySelectorAll('#status-toggle button').forEach(function(btn){
@@ -1216,7 +1261,7 @@
       var title = document.getElementById('f-title').value.trim();
       var author = document.getElementById('f-author').value.trim();
       var pages = parseInt(document.getElementById('f-pages').value, 10);
-      var genre = document.getElementById('f-genre').value || 'Unknown';
+      var genre = newBookGenre || 'Unknown';
       var titleErr = document.getElementById('err-title');
       var pagesErr = document.getElementById('err-pages');
       var valid = true;
@@ -1283,10 +1328,521 @@
     e.target.value = '';
   });
 
-  // Start-up: read the saved books first, then draw. Synchronous, so nothing can be saved before it has loaded.
   books = loadBooksFromStorage();
   window.StacksApp = { renderAll: renderAll };
   renderAll();
+})();
+</script>
+
+<script>
+(function(){
+  var loans = [];
+  var loanFilter = 'all';
+  var newLoanDirection = 'lent';
+
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function formatDate(iso){
+    if(!iso) return '';
+    var d = new Date(iso+'T00:00:00');
+    return d.toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+  }
+  function escapeHTML(str){ var d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+
+  function saveLoans(){
+    if(!saveLoansToStorage(loans)) showToast("Couldn't save — your browser may be blocking storage.");
+  }
+  function matchesLoanFilter(l){ return loanFilter==='all' || l.direction===loanFilter; }
+
+  function renderLoanFilter(){
+    var row = document.getElementById('loan-filter-row');
+    var html = '';
+    [['all','All'], ['lent','Lent out'], ['borrowed','Borrowed']].forEach(function(pair){
+      html += '<button class="genre-chip'+(loanFilter===pair[0]?' active':'')+'" data-loan-filter="'+pair[0]+'">'+pair[1]+'</button>';
+    });
+    row.innerHTML = html;
+    row.querySelectorAll('.genre-chip').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        loanFilter = btn.getAttribute('data-loan-filter');
+        renderLoans();
+      });
+    });
+  }
+
+  function loanSubLine(l){
+    var dirText = l.direction==='lent' ? ('Lent to '+escapeHTML(l.person)) : ('Borrowed from '+escapeHTML(l.person));
+    var parts = [dirText];
+    if(l.author) parts.push(escapeHTML(l.author));
+    if(l.date) parts.push(formatDate(l.date));
+    return parts.join(' &middot; ');
+  }
+
+  function renderActiveLoans(){
+    var list = document.getElementById('active-loans-list');
+    var all = loans.filter(function(l){ return !l.returned; });
+    var items = all.filter(matchesLoanFilter)
+      .sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+    list.innerHTML = '';
+    if(items.length===0){
+      var empty = document.createElement('div');
+      empty.className = 'section-empty';
+      if(all.length>0){
+        empty.innerHTML = "No loans match this filter.<br><button class='btn btn-primary' id='clear-loan-filter-btn' style='margin-top:10px;'>Show all</button>";
+        list.appendChild(empty);
+        document.getElementById('clear-loan-filter-btn').addEventListener('click', function(){ loanFilter='all'; renderLoans(); });
+      } else {
+        empty.innerHTML = "Nothing here yet.<br><button class='btn btn-primary' id='empty-add-loan-btn' style='margin-top:10px;'>Add a book</button>";
+        list.appendChild(empty);
+        document.getElementById('empty-add-loan-btn').addEventListener('click', openAddLoanModal);
+      }
+      return;
+    }
+    items.forEach(function(l){
+      var row = document.createElement('div');
+      row.className = 'book-row';
+      row.innerHTML =
+        '<div><div class="title">'+escapeHTML(l.title)+'</div><div class="sub">'+loanSubLine(l)+'</div></div>'+
+        '<div class="row-actions">'+
+          '<button class="btn" data-return="'+l.id+'">Mark returned</button>'+
+          '<button class="icon-btn" data-remove-loan="'+l.id+'" aria-label="Remove">&times;</button>'+
+        '</div>';
+      list.appendChild(row);
+    });
+    list.querySelectorAll('[data-return]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var l = loans.find(function(x){ return x.id===btn.getAttribute('data-return'); });
+        if(l){ l.returned=true; l.returnedDate=todayISO(); saveLoans(); renderLoans(); showToast('Marked returned'); }
+      });
+    });
+    list.querySelectorAll('[data-remove-loan]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var l = loans.find(function(x){ return x.id===btn.getAttribute('data-remove-loan'); });
+        if(l && confirm('Remove "'+l.title+'" from your loans?')){
+          loans = loans.filter(function(x){ return x.id!==l.id; });
+          saveLoans(); renderLoans();
+        }
+      });
+    });
+  }
+
+  function renderReturnedLoans(){
+    var section = document.getElementById('returned-loans-section');
+    var list = document.getElementById('returned-loans-list');
+    var items = loans.filter(function(l){ return l.returned; }).filter(matchesLoanFilter)
+      .sort(function(a,b){ return (b.returnedDate||'').localeCompare(a.returnedDate||''); });
+    if(items.length===0){ section.hidden=true; return; }
+    section.hidden = false;
+    list.innerHTML = '';
+    items.forEach(function(l){
+      var row = document.createElement('div');
+      row.className = 'book-row';
+      row.innerHTML =
+        '<div><div class="title">'+escapeHTML(l.title)+'</div><div class="sub">'+loanSubLine(l)+' &middot; returned '+formatDate(l.returnedDate)+'</div></div>'+
+        '<div class="row-actions">'+
+          '<button class="btn btn-quiet" data-unreturn="'+l.id+'">Undo</button>'+
+          '<button class="icon-btn" data-remove-loan-r="'+l.id+'" aria-label="Remove">&times;</button>'+
+        '</div>';
+      list.appendChild(row);
+    });
+    list.querySelectorAll('[data-unreturn]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var l = loans.find(function(x){ return x.id===btn.getAttribute('data-unreturn'); });
+        if(l){ l.returned=false; l.returnedDate=null; saveLoans(); renderLoans(); }
+      });
+    });
+    list.querySelectorAll('[data-remove-loan-r]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var l = loans.find(function(x){ return x.id===btn.getAttribute('data-remove-loan-r'); });
+        if(l && confirm('Remove "'+l.title+'" from your loans?')){
+          loans = loans.filter(function(x){ return x.id!==l.id; });
+          saveLoans(); renderLoans();
+        }
+      });
+    });
+  }
+
+  function renderLoans(){
+    renderLoanFilter();
+    renderActiveLoans();
+    renderReturnedLoans();
+  }
+
+  function openAddLoanModal(){
+    document.getElementById('add-loan-modal').hidden = false;
+    document.getElementById('l-title').value = '';
+    document.getElementById('l-author').value = '';
+    document.getElementById('l-person').value = '';
+    document.getElementById('l-date').value = todayISO();
+    document.getElementById('err-l-title').classList.remove('show');
+    document.getElementById('err-l-person').classList.remove('show');
+    newLoanDirection = 'lent';
+    document.querySelectorAll('#loan-direction-toggle button').forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-direction')==='lent');
+    });
+    document.getElementById('l-person-label').textContent = 'Lent to';
+    document.getElementById('l-title').focus();
+  }
+  function closeAddLoanModal(){ document.getElementById('add-loan-modal').hidden = true; }
+
+  document.getElementById('fab-add-loan').addEventListener('click', openAddLoanModal);
+  document.getElementById('cancel-add-loan').addEventListener('click', closeAddLoanModal);
+  document.getElementById('add-loan-modal').addEventListener('click', function(e){
+    if(e.target.id === 'add-loan-modal') closeAddLoanModal();
+  });
+  document.querySelectorAll('#loan-direction-toggle button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      newLoanDirection = btn.getAttribute('data-direction');
+      document.querySelectorAll('#loan-direction-toggle button').forEach(function(b){ b.classList.toggle('active', b===btn); });
+      document.getElementById('l-person-label').textContent = newLoanDirection==='lent' ? 'Lent to' : 'Borrowed from';
+    });
+  });
+
+  document.getElementById('add-loan-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    try{
+      var title = document.getElementById('l-title').value.trim();
+      var author = document.getElementById('l-author').value.trim();
+      var person = document.getElementById('l-person').value.trim();
+      var date = document.getElementById('l-date').value || null;
+      var titleErr = document.getElementById('err-l-title');
+      var personErr = document.getElementById('err-l-person');
+      var valid = true;
+      if(!title){ titleErr.classList.add('show'); valid=false; } else titleErr.classList.remove('show');
+      if(!person){ personErr.classList.add('show'); valid=false; } else personErr.classList.remove('show');
+      if(!valid) return;
+      var loan = {
+        id: makeId(), title: title, author: author, person: person,
+        direction: newLoanDirection, date: date, returned: false, returnedDate: null
+      };
+      loans.push(loan);
+      saveLoans();
+      closeAddLoanModal();
+      renderLoans();
+      showToast(newLoanDirection==='lent' ? 'Added to lent books' : 'Added to borrowed books');
+    }catch(err){
+      console.error('Add loan failed:', err);
+      showToast('Something went wrong. Try again.');
+    }
+  });
+
+  function showMainView(){
+    document.getElementById('app-content').hidden = false;
+    document.getElementById('lending-view').hidden = true;
+    document.getElementById('flashcards-view').hidden = true;
+    document.getElementById('fab-main').hidden = false;
+    document.getElementById('fab-add-loan').hidden = true;
+  }
+  function showLendingView(){
+    document.getElementById('app-content').hidden = true;
+    document.getElementById('lending-view').hidden = false;
+    document.getElementById('flashcards-view').hidden = true;
+    document.getElementById('fab-main').hidden = true;
+    document.getElementById('fab-add-loan').hidden = false;
+    renderLoans();
+  }
+  document.getElementById('lending-back-btn').addEventListener('click', showMainView);
+
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape' && !document.getElementById('add-loan-modal').hidden) closeAddLoanModal();
+  });
+
+  loans = loadLoansFromStorage();
+  window.LendingApp = { show: showLendingView };
+  window.showMainView = showMainView;
+})();
+</script>
+
+<script>
+// ---------- Flashcards & Dictionary Logic ----------
+(function(){
+  var VOCAB_KEY = 'stacks_vocabulary_v1';
+  var FC_STATS_KEY = 'stacks_flashcard_stats_v1';
+
+  var vocab = [];
+  var fcStats = { currentStreak: 0, longestStreak: 0, lastStudyDate: null };
+  var dueCards = [];
+  var currentCardIndex = 0;
+  var cardsReviewedToday = 0;
+  var totalCardsDueToday = 0;
+
+  function safeGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+  function safeSet(key, value){ try{ localStorage.setItem(key, value); return true; }catch(e){ return false; } }
+  function makeId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function escapeHTML(str){ var d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+
+  function loadVocab() {
+    var raw = safeGet(VOCAB_KEY);
+    if(raw) { try { vocab = JSON.parse(raw); } catch(e){} }
+  }
+  function saveVocab() { safeSet(VOCAB_KEY, JSON.stringify(vocab)); }
+  function loadFcStats() {
+    var raw = safeGet(FC_STATS_KEY);
+    if(raw) { try { fcStats = Object.assign(fcStats, JSON.parse(raw)); } catch(e){} }
+  }
+  function saveFcStats() { safeSet(FC_STATS_KEY, JSON.stringify(fcStats)); }
+
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function daysAgoISO(n){
+    var d = new Date();
+    d.setDate(d.getDate()-n);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  // Flashcards UI
+  function showFlashcardsView() {
+    document.getElementById('app-content').hidden = true;
+    document.getElementById('lending-view').hidden = true;
+    document.getElementById('flashcards-view').hidden = false;
+    document.getElementById('fab-main').hidden = true;
+    document.getElementById('fab-add-loan').hidden = true;
+
+    loadVocab();
+    loadFcStats();
+
+    var now = Date.now();
+    dueCards = vocab.filter(function(v) { return v.nextReviewDate <= now; });
+    totalCardsDueToday = dueCards.length;
+    cardsReviewedToday = 0;
+    currentCardIndex = 0;
+
+    renderFlashcardUI();
+  }
+
+  document.getElementById('menu-flashcards-btn').addEventListener('click', function(){
+    document.getElementById('menu-modal').hidden = true;
+    showFlashcardsView();
+  });
+  document.getElementById('fc-back-btn').addEventListener('click', function(){
+    if(window.showMainView) window.showMainView();
+  });
+
+  function playAudio(word, url) {
+    if(url) {
+      new Audio(url).play().catch(function(){ fallbackAudio(word); });
+    } else {
+      fallbackAudio(word);
+    }
+  }
+  function fallbackAudio(word) {
+    var msg = new SpeechSynthesisUtterance(word);
+    window.speechSynthesis.speak(msg);
+  }
+
+  function updateStreakOnReview() {
+    var today = todayISO();
+    var yesterday = daysAgoISO(1);
+    if(fcStats.lastStudyDate === yesterday) {
+      fcStats.currentStreak++;
+    } else if (fcStats.lastStudyDate !== today) {
+      fcStats.currentStreak = 1;
+    }
+    fcStats.lastStudyDate = today;
+    if(fcStats.currentStreak > fcStats.longestStreak) fcStats.longestStreak = fcStats.currentStreak;
+    saveFcStats();
+  }
+
+  function renderFlashcardUI() {
+    var streakEl = document.getElementById('fc-streak-counter');
+    streakEl.innerHTML = '🔥 ' + fcStats.currentStreak + ' Day Streak';
+
+    var pct = totalCardsDueToday > 0 ? (cardsReviewedToday / totalCardsDueToday) * 100 : 100;
+    document.getElementById('fc-progress-fill').style.width = pct + '%';
+
+    var container = document.getElementById('fc-container');
+    if(dueCards.length === 0) {
+      container.innerHTML = '<div class="fc-empty"><h3>You\'re all caught up for today!</h3><p style="margin-top:8px;">Session complete.</p></div>';
+      return;
+    }
+
+    var card = dueCards[currentCardIndex];
+    container.innerHTML =
+      '<div class="flashcard-scene">' +
+        '<div class="flashcard" id="active-fc">' +
+          '<div class="flashcard-face">' +
+            '<div class="fc-word">' + escapeHTML(card.word) + '<button class="fc-speaker" id="fc-front-speaker" aria-label="Listen">🔊</button></div>' +
+            '<div class="fc-phonetic">' + escapeHTML(card.phonetic || '') + '</div>' +
+            '<div style="margin-top:auto; text-align:center; color:var(--ink-soft); font-size:13.5px; border-top: 1px solid var(--glass-border); padding-top:14px;">Tap to flip</div>' +
+          '</div>' +
+          '<div class="flashcard-face flashcard-back">' +
+            '<div class="fc-def">' + escapeHTML(card.definition) + '</div>' +
+            (card.example ? '<div class="fc-example">' + escapeHTML(card.example) + '</div>' : '') +
+            '<div class="fc-actions">' +
+              '<button class="btn btn-quiet" id="fc-btn-review">Needs Review</button>' +
+              '<button class="btn btn-primary" id="fc-btn-learned">Learned</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    var fcEl = document.getElementById('active-fc');
+    fcEl.addEventListener('click', function(e){
+      if(e.target.tagName !== 'BUTTON') fcEl.classList.toggle('is-flipped');
+    });
+
+    document.getElementById('fc-front-speaker').addEventListener('click', function(e){
+      e.stopPropagation();
+      playAudio(card.word, card.audioUrl);
+    });
+
+    document.getElementById('fc-btn-review').addEventListener('click', function(e){
+      e.stopPropagation();
+      card.interval = 1;
+      card.nextReviewDate = Date.now() + (1 * 24 * 60 * 60 * 1000);
+      handleCardReviewed();
+    });
+
+    document.getElementById('fc-btn-learned').addEventListener('click', function(e){
+      e.stopPropagation();
+      card.interval = (card.interval || 1) * 2;
+      card.nextReviewDate = Date.now() + (card.interval * 24 * 60 * 60 * 1000);
+      handleCardReviewed();
+    });
+  }
+
+  function handleCardReviewed() {
+    var card = dueCards[currentCardIndex];
+    var v = vocab.find(function(x){ return x.id === card.id; });
+    if(v) { v.interval = card.interval; v.nextReviewDate = card.nextReviewDate; }
+    saveVocab();
+
+    if(cardsReviewedToday === 0) updateStreakOnReview();
+
+    cardsReviewedToday++;
+    dueCards.splice(currentCardIndex, 1);
+    renderFlashcardUI();
+  }
+
+  // Dictionary Search Modal
+  var searchModal = document.getElementById('word-search-modal');
+  var searchInput = document.getElementById('dict-search-input');
+  var searchBtn = document.getElementById('dict-search-btn');
+  var searchRes = document.getElementById('dict-search-results');
+  var currentApiAudio = null;
+
+  function openSearchModal() {
+    searchModal.hidden = false;
+    searchInput.value = '';
+    searchRes.innerHTML = '';
+    searchInput.focus();
+  }
+  function closeSearchModal() { searchModal.hidden = true; }
+  document.getElementById('close-search-modal').addEventListener('click', closeSearchModal);
+  searchModal.addEventListener('click', function(e){ if(e.target === searchModal) closeSearchModal(); });
+
+  searchBtn.addEventListener('click', async function(){
+    var q = searchInput.value.trim();
+    if(!q) return;
+    
+    // Disable button to prevent rate limiting from multiple rapid clicks
+    searchBtn.disabled = true;
+    searchBtn.style.opacity = '0.5';
+    searchBtn.style.cursor = 'not-allowed';
+    
+    searchRes.innerHTML = '<div style="text-align:center; color:var(--ink-soft); margin-top:20px;">Searching...</div>';
+
+    function showManualFallback(msg) {
+      searchRes.innerHTML =
+        '<p style="color:var(--ink-soft); font-size:13px; margin-top:14px;">' + msg + '</p>' +
+        '<div class="field"><input type="text" id="manual-def" placeholder="Definition / Translation" autocomplete="off"></div>' +
+        '<div class="modal-actions"><button class="btn btn-primary" id="manual-save-btn">Save Manually</button></div>';
+      document.getElementById('manual-save-btn').addEventListener('click', function(){
+        var mdef = document.getElementById('manual-def').value.trim();
+        if(!mdef) return;
+        saveNewWord(q, '', mdef, '', null);
+      });
+    }
+
+    try {
+      var res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(q));
+      if(!res.ok) {
+        showManualFallback('Not found in dictionary (or rate limited). You can save it manually:');
+      } else {
+        var data = await res.json();
+        var entry = data[0];
+        var phonetic = entry.phonetic || '';
+        var def = '';
+        var ex = '';
+        if (entry.meanings && entry.meanings.length > 0 && entry.meanings[0].definitions.length > 0) {
+          def = entry.meanings[0].definitions[0].definition || '';
+          ex = entry.meanings[0].definitions[0].example || '';
+        }
+        var audioUrl = null;
+        if (entry.phonetics) {
+          var p = entry.phonetics.find(function(pt){ return pt.audio; });
+          if (p) audioUrl = p.audio;
+        }
+
+        searchRes.innerHTML =
+          '<div style="background:rgba(255,255,255,0.06); padding:16px; border-radius:12px; border:1px solid var(--glass-border); margin-top:14px;">' +
+            '<div class="fc-word" style="font-size:20px;">' + escapeHTML(q) +
+              ' <button class="fc-speaker" id="res-speaker">🔊</button>'+
+            '</div>' +
+            '<div class="fc-phonetic">' + escapeHTML(phonetic) + '</div>' +
+            '<div class="fc-def" style="font-size:14px; margin-bottom:8px;">' + escapeHTML(def) + '</div>' +
+            (ex ? '<div class="fc-example" style="font-size:13px; margin-bottom:0;">' + escapeHTML(ex) + '</div>' : '') +
+          '</div>' +
+          '<div class="modal-actions"><button class="btn btn-primary" id="res-save-btn">Save to Flashcards</button></div>';
+
+        currentApiAudio = audioUrl;
+        document.getElementById('res-speaker').addEventListener('click', function(){ playAudio(q, currentApiAudio); });
+        document.getElementById('res-save-btn').addEventListener('click', function(){ saveNewWord(q, phonetic, def, ex, currentApiAudio); });
+      }
+    } catch (e) {
+      showManualFallback('Network error or offline. You can save it manually:');
+    } finally {
+      // Re-enable button after request completes
+      searchBtn.disabled = false;
+      searchBtn.style.opacity = '1';
+      searchBtn.style.cursor = 'pointer';
+    }
+  });
+
+
+  function saveNewWord(word, phonetic, def, ex, audioUrl) {
+    loadVocab();
+    vocab.push({
+      id: makeId(),
+      word: word,
+      phonetic: phonetic,
+      definition: def,
+      example: ex,
+      audioUrl: audioUrl,
+      interval: 1,
+      nextReviewDate: Date.now()
+    });
+    saveVocab();
+    var toast = document.getElementById('toast');
+    if(toast) {
+        toast.textContent = 'Saved to Flashcards';
+        toast.classList.add('show');
+        setTimeout(function(){ toast.classList.remove('show'); }, 2200);
+    }
+    closeSearchModal();
+  }
+
+  // FAB Speed Dial Logic
+  var fabMain = document.getElementById('fab-main');
+  var fabToggle = document.getElementById('fab-toggle-btn');
+  var fabWordSearch = document.getElementById('fab-word-search');
+  var fabAddBook = document.getElementById('fab-add-book');
+
+  fabToggle.addEventListener('click', function(){
+    fabMain.classList.toggle('open');
+  });
+  fabWordSearch.addEventListener('click', function(){
+    fabMain.classList.remove('open');
+    openSearchModal();
+  });
+  fabAddBook.addEventListener('click', function(){
+    fabMain.classList.remove('open');
+    if(window.openAddModal) window.openAddModal();
+  });
+
 })();
 </script>
 
