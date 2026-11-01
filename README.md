@@ -6,7 +6,7 @@ No accounts, no server — everything lives on your device.
 ## Features
 * **Reading Shelf:** Track your active books, pages logged, daily pace, and yearly reading goals.
 * **Lending & Borrowing:** Keep a record of books you've lent out to friends or borrowed from others.
-* **Glossary & Flashcards:** Search for words using a built-in dictionary, save them, and memorize them using a Spaced Repetition System (SRS) with audio pronunciation and daily streak tracking.
+* **Dictionary & Flashcards:** Search for words using a built-in dictionary, save them, and memorize them using a Spaced Repetition System (SRS) with audio pronunciation and daily streak tracking.
 * **Dynamic Theme:** The app automatically extracts an accent color from your uploaded background image to style the entire interface.
 
 ## Files (keep this folder structure)
