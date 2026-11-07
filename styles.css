@@ -350,7 +350,11 @@ section h2{font-size:19px; margin-bottom:14px;}
 .fc-phonetic { color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; margin-bottom: 16px; }
 .fc-def { font-size: 15px; line-height: 1.5; color: var(--ink); margin-bottom: 14px; }
 .fc-example { font-size: 14px; font-style: italic; color: var(--ink-soft); border-left: 3px solid var(--accent); padding-left: 12px; }
-.fc-speaker { background:none; border:none; font-size:20px; cursor:pointer; color:var(--accent); padding:6px; border-radius: 50%; display:flex; align-items:center; justify-content:center; }
+.fc-speaker { background:none; border:none; font-size:16px; cursor:pointer; color:var(--ink-soft); padding:6px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition: color 0.2s ease; }
+.fc-speaker:hover { color:var(--accent); background:rgba(255,255,255,0.06); }
+.fc-speaker svg { width:20px; height:20px; stroke-width:2.5; stroke:currentColor; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.fc-speaker.loading svg { animation: spin 1s linear infinite; stroke:var(--accent-soft); }
 .fc-speaker:hover { background: rgba(255,255,255,0.1); }
 .fc-actions { margin-top: auto; display: flex; gap: 12px; }
 .fc-actions button { flex: 1; padding: 12px; }
