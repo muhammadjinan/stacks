@@ -1693,36 +1693,48 @@
 
   function playAudio(word, url, btnElement) {
     if(!url) { fallbackAudio(word); return; }
-    
-    // Set up loading animation with a small delay (150ms) to avoid flashing on instant loads
-    var loadingTimer = setTimeout(function(){
-      if(btnElement) {
+
+    var flashTimer;
+
+    function setSpinner() {
+      if(btnElement && !btnElement.classList.contains('loading')) {
         btnElement.classList.add('loading');
         btnElement.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg>';
       }
-    }, 150);
-
-    function resetBtn() {
-      clearTimeout(loadingTimer);
+    }
+    
+    function removeSpinner() {
+      clearTimeout(flashTimer);
       if(btnElement) {
         btnElement.classList.remove('loading');
         btnElement.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>';
       }
     }
 
-    if(audioCache[url]) {
-      audioCache[url].currentTime = 0;
-      audioCache[url].play().then(resetBtn).catch(function(){ fallbackAudio(word); resetBtn(); });
-    } else {
-      var audio = new Audio(url);
-      audio.addEventListener('canplaythrough', function() {
-        audioCache[url] = audio;
-        audio.play().then(resetBtn).catch(function(){ fallbackAudio(word); resetBtn(); });
-      }, { once: true });
-      audio.addEventListener('error', function(){ fallbackAudio(word); resetBtn(); });
-      audio.load();
+    if(!audioCache[url]) {
+      audioCache[url] = new Audio(url);
+      audioCache[url].addEventListener('waiting', setSpinner);
+      audioCache[url].addEventListener('playing', removeSpinner);
+      audioCache[url].addEventListener('ended', removeSpinner);
+      audioCache[url].addEventListener('pause', removeSpinner);
+      audioCache[url].addEventListener('error', function() {
+        removeSpinner();
+        fallbackAudio(word);
+      });
     }
+
+    // Set a tiny delay so instantly cached audio doesn't flash the spinner
+    flashTimer = setTimeout(setSpinner, 100);
+
+    audioCache[url].currentTime = 0;
+    
+    // Calling play() synchronously inside the click event prevents mobile browsers from blocking it
+    audioCache[url].play().catch(function() {
+      removeSpinner();
+      fallbackAudio(word);
+    });
   }
+  
   function fallbackAudio(word) {
     var msg = new SpeechSynthesisUtterance(word);
     window.speechSynthesis.speak(msg);
