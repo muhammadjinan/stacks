@@ -1689,38 +1689,11 @@
     if(window.showMainView) window.showMainView();
   });
 
-  var audioCache = {};
-
-  function playAudio(word, url, btnElement) {
-    if(!url) { fallbackAudio(word); return; }
-    
-    // Set up loading animation with a small delay (150ms) to avoid flashing on instant loads
-    var loadingTimer = setTimeout(function(){
-      if(btnElement) {
-        btnElement.classList.add('loading');
-        btnElement.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg>';
-      }
-    }, 150);
-
-    function resetBtn() {
-      clearTimeout(loadingTimer);
-      if(btnElement) {
-        btnElement.classList.remove('loading');
-        btnElement.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>';
-      }
-    }
-
-    if(audioCache[url]) {
-      audioCache[url].currentTime = 0;
-      audioCache[url].play().then(resetBtn).catch(function(){ fallbackAudio(word); resetBtn(); });
+  function playAudio(word, url) {
+    if(url) {
+      new Audio(url).play().catch(function(){ fallbackAudio(word); });
     } else {
-      var audio = new Audio(url);
-      audio.addEventListener('canplaythrough', function() {
-        audioCache[url] = audio;
-        audio.play().then(resetBtn).catch(function(){ fallbackAudio(word); resetBtn(); });
-      }, { once: true });
-      audio.addEventListener('error', function(){ fallbackAudio(word); resetBtn(); });
-      audio.load();
+      fallbackAudio(word);
     }
   }
   function fallbackAudio(word) {
@@ -1759,7 +1732,7 @@
       '<div class="flashcard-scene">' +
         '<div class="flashcard" id="active-fc">' +
           '<div class="flashcard-face">' +
-            '<div class="fc-word">' + escapeHTML(card.word) + '<button class="fc-speaker" id="fc-front-speaker" aria-label="Listen"><svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg></button></div>' +
+            '<div class="fc-word">' + escapeHTML(card.word) + '<button class="fc-speaker" id="fc-front-speaker" aria-label="Listen">🔊</button></div>' +
             '<div class="fc-phonetic">' + escapeHTML(card.phonetic || '') + '</div>' +
             '<div style="margin-top:auto; text-align:center; color:var(--ink-soft); font-size:13.5px; border-top: 1px solid var(--glass-border); padding-top:14px;">Tap to flip</div>' +
           '</div>' +
@@ -1781,7 +1754,7 @@
 
     document.getElementById('fc-front-speaker').addEventListener('click', function(e){
       e.stopPropagation();
-      playAudio(card.word, card.audioUrl, document.getElementById('fc-front-speaker'));
+      playAudio(card.word, card.audioUrl);
     });
 
     document.getElementById('fc-btn-review').addEventListener('click', function(e){
@@ -1891,7 +1864,7 @@
         searchRes.innerHTML =
           '<div style="background:rgba(255,255,255,0.06); padding:16px; border-radius:12px; border:1px solid var(--glass-border); margin-top:14px;">' +
             '<div class="fc-word" style="font-size:20px;">' + escapeHTML(q) +
-              ' <button class="fc-speaker" id="res-speaker" aria-label="Listen"><svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg></button>'+
+              ' <button class="fc-speaker" id="res-speaker">🔊</button>'+
             '</div>' +
             '<div class="fc-phonetic">' + escapeHTML(phonetic) + '</div>' +
             '<div class="fc-def" style="font-size:14px; margin-bottom:8px;">' + escapeHTML(def) + '</div>' +
@@ -1900,7 +1873,7 @@
           '<div class="modal-actions"><button class="btn btn-primary" id="res-save-btn">Save to Flashcards</button></div>';
 
         currentApiAudio = audioUrl;
-        document.getElementById('res-speaker').addEventListener('click', function(){ playAudio(q, currentApiAudio, document.getElementById('res-speaker')); });
+        document.getElementById('res-speaker').addEventListener('click', function(){ playAudio(q, currentApiAudio); });
         document.getElementById('res-save-btn').addEventListener('click', function(){ saveNewWord(q, phonetic, def, ex, currentApiAudio); });
       }
     } catch (e) {
